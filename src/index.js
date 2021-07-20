@@ -46,7 +46,9 @@ class Board extends React.Component {
   }
 
   handleClick(i) {
-    if (this.state.winner) {
+    if (this.state.winner || this.state.squares[i]) {
+      // either there is already a winner, or someone is trying
+      // to select a square that has already been picked
       return;
     }
 
