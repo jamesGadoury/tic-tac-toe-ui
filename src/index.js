@@ -2,18 +2,13 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css'
 
-// Square doesn't hold any state by design
-// The parent component will pass state to it
-// In this case, the parent component is the Board component
-// This is an example of a "controlled component"
-class Square extends React.Component {
-  render() {
+// function component
+function Square(props) {
     return (
-      <button className="square" onClick={() => this.props.onClick()}>
-        {this.props.value}
+      <button className="square" onClick={props.onClick}>
+        {props.value}
       </button>
     );
-  }
 }
 
 class Board extends React.Component {
@@ -25,6 +20,10 @@ class Board extends React.Component {
   }
 
   handleClick(i) {
+    // replace data with a new copy, instead of mutating original data
+    // React apparently loves immutability - see `pure components`
+    // this helps React easily determine if changes have been made,
+    // which helps to determine when a component requires re-rendering
     const squares = this.state.squares.slice();
     squares[i] = 'X';
     this.setState({squares: squares});
