@@ -16,7 +16,12 @@ class Board extends React.Component {
     super(props);
     this.state = {
       squares: Array(9).fill(null),
+      currentPlayerMarker: 'X',
     };
+  }
+
+  nextPlayerMarker() {
+    return this.state.currentPlayerMarker === 'X' ? 'O' : 'X';
   }
 
   handleClick(i) {
@@ -25,8 +30,10 @@ class Board extends React.Component {
     // this helps React easily determine if changes have been made,
     // which helps to determine when a component requires re-rendering
     const squares = this.state.squares.slice();
-    squares[i] = 'X';
-    this.setState({squares: squares});
+    squares[i] = this.state.currentPlayerMarker;
+    this.setState({
+      squares: squares,
+      currentPlayerMarker: this.nextPlayerMarker()});
   }
 
   renderSquare(i) {
@@ -39,7 +46,7 @@ class Board extends React.Component {
   }
 
   render() {
-    const status = 'Next player: X';
+    const status = `Current player's turn: ${this.state.currentPlayerMarker}`; 
 
     return (
       <div>
