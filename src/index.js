@@ -37,6 +37,7 @@ class Board extends React.Component {
     this.state = {
       squares: Array(9).fill(null),
       currentPlayerMarker: 'X',
+      winner: null,
     };
   }
 
@@ -45,15 +46,22 @@ class Board extends React.Component {
   }
 
   handleClick(i) {
+    if (this.state.winner) {
+      return;
+    }
+
     // replace data with a new copy, instead of mutating original data
     // React apparently loves immutability - see `pure components`
     // this helps React easily determine if changes have been made,
     // which helps to determine when a component requires re-rendering
     const squares = this.state.squares.slice();
     squares[i] = this.state.currentPlayerMarker;
+
     this.setState({
       squares: squares,
-      currentPlayerMarker: this.nextPlayerMarker()});
+      currentPlayerMarker: this.nextPlayerMarker(),
+      winner: calculateWinner(squares)
+    });
   }
 
   renderSquare(i) {
@@ -66,9 +74,8 @@ class Board extends React.Component {
   }
 
   render() {
-    const winner = calculateWinner(this.state.squares);
-    const status = ( winner ? 
-      `Winner: ${winner}` :
+    const status = ( this.state.winner ? 
+      `Winner: ${this.state.winner}` :
       `Current player's turn: ${this.state.currentPlayerMarker}`
     );
 
