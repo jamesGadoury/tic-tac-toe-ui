@@ -73,6 +73,20 @@ function calculateWinner(squares) {
   return null;
 }
 
+function statusOfBoard(squares, currentPlayerMarker) {
+  const winner = calculateWinner(squares);
+
+  if (winner) {
+    return `Winner: ${winner}`;
+  }
+
+  const draw = calculateDraw(squares);
+  if (draw) {
+    return 'Draw';
+  }
+  
+  return `Current player's turn: ${currentPlayerMarker}`
+}
 
 function nextPlayerMarker(currentPlayerMarker) {
   return currentPlayerMarker === 'X' ? 'O' : 'X';
@@ -130,29 +144,12 @@ class Game extends React.Component {
     })
   }
 
-  statusOfBoard() {
+  render() {
     const currentPlayerMarker = this.state.currentPlayerMarker;
     const history = this.state.history;
     const current = history[this.state.moveNumber];
     const squares = current.squares;
-    const winner = calculateWinner(squares);
-
-    if (winner) {
-      return `Winner: ${winner}`;
-    }
-
-    const draw = calculateDraw(squares);
-    if (draw) {
-      return 'Draw';
-    }
-    
-    return `Current player's turn: ${currentPlayerMarker}`
-  }
-
-  render() {
-    const history = this.state.history;
-    const current = history[this.state.moveNumber];
-    const status = this.statusOfBoard(); 
+    const status = statusOfBoard(squares, currentPlayerMarker); 
 
     const moves = history.map((step, move) => {
       const desc = move ?
@@ -172,7 +169,7 @@ class Game extends React.Component {
       <div className="game">
         <div className="game-board">
           <Board 
-            squares={current.squares}
+            squares={squares}
             onClick={(i) => this.handleClick(i)}
           />
         </div>
