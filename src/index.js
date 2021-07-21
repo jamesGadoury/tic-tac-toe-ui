@@ -11,30 +11,6 @@ function Square(props) {
     );
 }
 
-function calculateWinner(squares) {
-  const lines = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
-  ];
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a];
-    }
-  }
-  return null;
-}
-
-function nextPlayerMarker(currentPlayerMarker) {
-  return currentPlayerMarker === 'X' ? 'O' : 'X';
-}
-
 class Board extends React.Component {
   renderSquare(i) {
     return (
@@ -68,6 +44,34 @@ class Board extends React.Component {
   }
 }
 
+function calculateWinner(squares) {
+  const lines = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+  ];
+  for (let i = 0; i < lines.length; i++) {
+    const [a, b, c] = lines[i];
+    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+      return squares[a];
+    }
+  }
+  return null;
+}
+
+function nextPlayerMarker(currentPlayerMarker) {
+  return currentPlayerMarker === 'X' ? 'O' : 'X';
+}
+
+function playerThisMove(move) {
+  return (move % 2) === 0 ? 'X' : 'O';
+}
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -76,12 +80,12 @@ class Game extends React.Component {
         squares: Array(9).fill(null),
       }],
       currentPlayerMarker: 'X',
-      winner: null,
+      moveNumber: 0
     }
   }
 
   handleClick(i) {
-    const history = this.state.history;
+    const history = this.state.history.slice(0, this.state.moveNumber+1);
     const current = history[history.length - 1];
 
     // replace data with a new copy, instead of mutating original data
@@ -89,9 +93,8 @@ class Game extends React.Component {
     // this helps React easily determine if changes have been made,
     // which helps to determine when a component requires re-rendering
     const squares = current.squares.slice();
-    const winner  = this.state.winner;
 
-    if (winner || squares[i]) {
+    if (calculateWinner(squares) || squares[i]) {
       // either there is already a winner, or someone is trying
       // to select a square that has already been picked
       return;
@@ -106,17 +109,39 @@ class Game extends React.Component {
         squares: squares
       }]),
       currentPlayerMarker: nextPlayerMarker(currentPlayerMarker),
-      winner: calculateWinner(squares)
+      moveNumber: history.length,
     });
+  }
+
+  jumpTo(move) {
+    this.setState({
+      moveNumber: move,
+      currentPlayerMarker: playerThisMove(move)
+    })
   }
 
   render() {
     const history = this.state.history;
-    const current = history[history.length - 1];
-    const status = ( this.state.winner ? 
-      `Winner: ${this.state.winner}` :
+    const current = history[this.state.moveNumber];
+    const winner = calculateWinner(current.squares); 
+    const status = ( winner ? 
+      `Winner: ${winner}` :
       `Current player's turn: ${this.state.currentPlayerMarker}`
     );
+
+    const moves = history.map((step, move) => {
+      const desc = move ?
+        `Go to move #${move}` :
+        'Go to game start';
+
+      return (
+        // we add a key to give React the ability to know
+        // what components to update
+        <li key={move}> 
+          <button onClick={() => this.jumpTo(move)}>{desc}</button>
+        </li>
+      );
+    });
 
     return (
       <div className="game">
@@ -128,7 +153,7 @@ class Game extends React.Component {
         </div>
         <div className="game-info">
           <div>{status}</div>
-          <ol>{/* TODO */}</ol>
+          <ol>{moves}</ol>
         </div>
       </div>
     );
