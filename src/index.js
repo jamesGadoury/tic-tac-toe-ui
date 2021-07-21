@@ -96,6 +96,58 @@ function playerThisMove(move) {
   return (move % 2) === 0 ? 'X' : 'O';
 }
 
+function currentPlayerIsAI(currentPlayerMarker) {
+  return currentPlayerMarker === 'O';
+}
+
+function cornerWasPlayed(squares) {
+  return squares[0] || squares[2] || squares[6] || squares[8];
+}
+
+// just pulled from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+function getRandomInt(min, max) { 
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
+function randomCornerPlay(squares) {
+  const corners = [0, 2, 6, 8];
+  const availableCorners = corners.filter(corner => !squares[corner]);
+  if (availableCorners === undefined || availableCorners.length == 0) {
+    return null; // todo error would likely be best, but don't want to deal with that complexity at this stage
+  }
+  return corners[getRandomInt(0, availableCorners.length)]
+}
+
+function searchForBestPlay(squares) {
+  // todo
+}
+
+function generateRandomPlay(squares) {
+  let availableSquares = [];
+  for (let i = 0; i < squares.length; ++i) {
+    if (!squares[i]) {
+      availableSquares.push(i);
+    }
+  }
+  if (availableSquares === undefined || availableSquares.length == 0) {
+    return null; // todo error would likely be best
+  }
+  return availableSquares[getRandomInt(0, availableSquares.length)];
+}
+
+function generateAIPlay(squares, moveNumber) {
+  // three condition action rules based on AI always going second
+  if (moveNumber === 1) {
+    if (cornerWasPlayed(squares)) {
+      return 4; // this is the middle square
+    }
+    return randomCornerPlay(squares);
+  }
+  return generateRandomPlay(squares);
+}
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -109,6 +161,7 @@ class Game extends React.Component {
   }
 
   handleClick(i) {
+    const currentPlayerMarker = this.state.currentPlayerMarker;
     const history = this.state.history.slice(0, this.state.moveNumber+1);
     const current = history[history.length - 1];
 
@@ -118,15 +171,40 @@ class Game extends React.Component {
     // which helps to determine when a component requires re-rendering
     const squares = current.squares.slice();
 
-    if (calculateWinner(squares) || squares[i]) {
+    if (calculateWinner(squares) || squares[i] || currentPlayerIsAI(currentPlayerMarker)) {
       // either there is already a winner, or someone is trying
-      // to select a square that has already been picked
+      // to select a square that has already been picked, or
+      // it isn't the player's turn
       return;
     }
 
-    squares[i] = this.state.currentPlayerMarker;
+    squares[i] = currentPlayerMarker;
 
-    const currentPlayerMarker = this.state.currentPlayerMarker;
+    this.setState({
+      history: history.concat([{
+        squares: squares
+      }]),
+      currentPlayerMarker: nextPlayerMarker(currentPlayerMarker),
+      moveNumber: history.length,
+    }, () => {
+      if (!calculateWinner(squares) && !calculateDraw(squares)) {
+        this.handleAIPlay(generateAIPlay(squares, this.state.moveNumber)); // todo, really should be getting moveNumber from count of squares 
+      }
+    });
+
+  }
+
+  handleAIPlay(i) {
+    const currentPlayerMarker = 'O';
+    const history = this.state.history.slice(0, this.state.moveNumber+1);
+    const current = history[history.length - 1];
+
+    // replace data with a new copy, instead of mutating original data
+    // React apparently loves immutability - see `pure components`
+    // this helps React easily determine if changes have been made,
+    // which helps to determine when a component requires re-rendering
+    const squares = current.squares.slice();
+    squares[i] = currentPlayerMarker;
 
     this.setState({
       history: history.concat([{
@@ -141,7 +219,15 @@ class Game extends React.Component {
     this.setState({
       moveNumber: move,
       currentPlayerMarker: playerThisMove(move)
-    })
+    },() => {
+      if (currentPlayerIsAI(this.state.currentPlayerMarker)) {
+        const moveNumber = this.state.moveNumber;
+        const history = this.state.history.slice(0, moveNumber+1);
+        const squares = history[history.length - 1].squares;
+
+        this.handleAIPlay(generateAIPlay(squares, moveNumber)); // todo, really should be getting moveNumber from count of squares 
+      } 
+    });
   }
 
   render() {
