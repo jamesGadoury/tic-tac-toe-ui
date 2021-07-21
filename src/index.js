@@ -44,6 +44,15 @@ class Board extends React.Component {
   }
 }
 
+function calculateDraw(squares) {
+  for (const square of squares) {
+    if (!square) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function calculateWinner(squares) {
   const lines = [
     [0, 1, 2],
@@ -63,6 +72,7 @@ function calculateWinner(squares) {
   }
   return null;
 }
+
 
 function nextPlayerMarker(currentPlayerMarker) {
   return currentPlayerMarker === 'X' ? 'O' : 'X';
@@ -120,14 +130,29 @@ class Game extends React.Component {
     })
   }
 
+  statusOfBoard() {
+    const currentPlayerMarker = this.state.currentPlayerMarker;
+    const history = this.state.history;
+    const current = history[this.state.moveNumber];
+    const squares = current.squares;
+    const winner = calculateWinner(squares);
+
+    if (winner) {
+      return `Winner: ${winner}`;
+    }
+
+    const draw = calculateDraw(squares);
+    if (draw) {
+      return 'Draw';
+    }
+    
+    return `Current player's turn: ${currentPlayerMarker}`
+  }
+
   render() {
     const history = this.state.history;
     const current = history[this.state.moveNumber];
-    const winner = calculateWinner(current.squares); 
-    const status = ( winner ? 
-      `Winner: ${winner}` :
-      `Current player's turn: ${this.state.currentPlayerMarker}`
-    );
+    const status = this.statusOfBoard(); 
 
     const moves = history.map((step, move) => {
       const desc = move ?
