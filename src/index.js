@@ -31,59 +31,23 @@ function calculateWinner(squares) {
   return null;
 }
 
+function nextPlayerMarker(currentPlayerMarker) {
+  return currentPlayerMarker === 'X' ? 'O' : 'X';
+}
+
 class Board extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      squares: Array(9).fill(null),
-      currentPlayerMarker: 'X',
-      winner: null,
-    };
-  }
-
-  nextPlayerMarker() {
-    return this.state.currentPlayerMarker === 'X' ? 'O' : 'X';
-  }
-
-  handleClick(i) {
-    if (this.state.winner || this.state.squares[i]) {
-      // either there is already a winner, or someone is trying
-      // to select a square that has already been picked
-      return;
-    }
-
-    // replace data with a new copy, instead of mutating original data
-    // React apparently loves immutability - see `pure components`
-    // this helps React easily determine if changes have been made,
-    // which helps to determine when a component requires re-rendering
-    const squares = this.state.squares.slice();
-    squares[i] = this.state.currentPlayerMarker;
-
-    this.setState({
-      squares: squares,
-      currentPlayerMarker: this.nextPlayerMarker(),
-      winner: calculateWinner(squares)
-    });
-  }
-
   renderSquare(i) {
     return (
       <Square 
-        value={this.state.squares[i]}
-        onClick={() => this.handleClick(i)} 
+        value={this.props.squares[i]}
+        onClick={() => this.props.onClick(i)} 
       />
     ); // parantheses used so that Javascript doesn't insert a colon after return and break things
   }
 
   render() {
-    const status = ( this.state.winner ? 
-      `Winner: ${this.state.winner}` :
-      `Current player's turn: ${this.state.currentPlayerMarker}`
-    );
-
     return (
       <div>
-        <div className="status">{status}</div>
         <div className="board-row">
           {this.renderSquare(0)}
           {this.renderSquare(1)}
@@ -105,14 +69,65 @@ class Board extends React.Component {
 }
 
 class Game extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      history: [{
+        squares: Array(9).fill(null),
+      }],
+      currentPlayerMarker: 'X',
+      winner: null,
+    }
+  }
+
+  handleClick(i) {
+    const history = this.state.history;
+    const current = history[history.length - 1];
+
+    // replace data with a new copy, instead of mutating original data
+    // React apparently loves immutability - see `pure components`
+    // this helps React easily determine if changes have been made,
+    // which helps to determine when a component requires re-rendering
+    const squares = current.squares.slice();
+    const winner  = this.state.winner;
+
+    if (winner || squares[i]) {
+      // either there is already a winner, or someone is trying
+      // to select a square that has already been picked
+      return;
+    }
+
+    squares[i] = this.state.currentPlayerMarker;
+
+    const currentPlayerMarker = this.state.currentPlayerMarker;
+
+    this.setState({
+      history: history.concat([{
+        squares: squares
+      }]),
+      currentPlayerMarker: nextPlayerMarker(currentPlayerMarker),
+      winner: calculateWinner(squares)
+    });
+  }
+
   render() {
+    const history = this.state.history;
+    const current = history[history.length - 1];
+    const status = ( this.state.winner ? 
+      `Winner: ${this.state.winner}` :
+      `Current player's turn: ${this.state.currentPlayerMarker}`
+    );
+
     return (
       <div className="game">
         <div className="game-board">
-          <Board />
+          <Board 
+            squares={current.squares}
+            onClick={(i) => this.handleClick(i)}
+          />
         </div>
         <div className="game-info">
-          <div>{/* status */}</div>
+          <div>{status}</div>
           <ol>{/* TODO */}</ol>
         </div>
       </div>
