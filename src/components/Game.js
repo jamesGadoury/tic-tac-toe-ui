@@ -167,6 +167,9 @@ function Game() {
 
 
   const jumpTo = (move) => {
+    if (move === 0) {
+      return;
+    }
     setHistory(history.slice(0, move));
   }
 
