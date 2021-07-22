@@ -109,6 +109,28 @@ function currentPlayerIsAI(squares) {
   return (moves % 2 !== 0 && moves !== 0);
 }
 
+function generateRowColumn(i) {
+  return ["(0,0)", "(0,1)", "(0,2)", "(1,0)", "(1,1)", "(1,2)", "(2,0)", "(2,1)", "(2,2)"][i];
+}
+
+function play(history, move) {
+  if (move === 0) {
+    return "Game Start";
+  }
+  const history_before = history[move-1];
+  const history_after  = history[move];
+  
+  for (let i = 0; i < history[0].squares.length; ++i) {
+    if (!history_before.squares[i] && history_after.squares[i]) {
+      const new_marker = history_after.squares[i];
+      const player = new_marker === AI_PLAYER_MARKER ? 'AI' : 'Human';
+      return player + " played " + new_marker + " on " + generateRowColumn(i);
+    }
+  }
+  console.log("No difference in history in play function!");
+  return null; 
+}
+
 function Game() {
   const [history, setHistory] = useState([{
     squares: Array(9).fill(null),
@@ -177,10 +199,7 @@ function Game() {
   const status = statusOfBoard(squares); 
 
   const moves = history.map((step, move) => {
-    const desc = move ?
-      `Go to move #${move}` :
-      'Go to game start';
-
+    const desc = play(history, move); 
     return (
       // we add a key to give React the ability to know
       // what components to update
