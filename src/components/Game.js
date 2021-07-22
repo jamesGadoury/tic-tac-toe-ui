@@ -189,10 +189,7 @@ function Game() {
 
 
   const jumpTo = (move) => {
-    if (move === 0) {
-      return;
-    }
-    setHistory(history.slice(0, move));
+    setHistory(history.slice(0, move+1));
   }
 
   const squares = history[history.length-1].squares;
