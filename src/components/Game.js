@@ -123,7 +123,7 @@ function play(history, move) {
   for (let i = 0; i < history[0].squares.length; ++i) {
     if (!history_before.squares[i] && history_after.squares[i]) {
       const new_marker = history_after.squares[i];
-      const player = new_marker === AI_PLAYER_MARKER ? 'AI' : 'Human';
+      const player = new_marker === AI_PLAYER_MARKER ? 'Opponent AI' : 'You';
       return player + " played " + new_marker + " on " + generateRowColumn(i);
     }
   }
