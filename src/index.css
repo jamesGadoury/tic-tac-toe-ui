@@ -52,3 +52,9 @@ ol, ul {
 .game-info {
   margin-left: 20px;
 }
+
+.move-button {
+  text-decoration: none;
+  margin: 4px 2px;
+  border-radius: 12px;
+}

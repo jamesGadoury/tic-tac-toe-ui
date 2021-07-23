@@ -200,7 +200,7 @@ function Game() {
     return (
       // we add a key to give React the ability to know
       // what components to update
-      <li key={move}> 
+      <li key={move} className="move-button"> 
         <button onClick={() => jumpTo(move)}>{desc}</button>
       </li>
     );
