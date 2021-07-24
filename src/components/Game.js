@@ -70,7 +70,7 @@ function randomCornerPlay(squares) {
   return corners[getRandomInt(0, availableCorners.length)]
 }
 
-function generateRandomPlay(squares) {
+function generateAvailableSquares(squares) {
   let availableSquares = [];
   for (let i = 0; i < squares.length; ++i) {
     if (!squares[i]) {
@@ -80,8 +80,14 @@ function generateRandomPlay(squares) {
   if (availableSquares === undefined || availableSquares.length === 0) {
     return null; // todo error would likely be best
   }
+  return availableSquares;
+}
+
+function generateRandomPlay(squares) {
+  const availableSquares = generateAvailableSquares(squares);
   return availableSquares[getRandomInt(0, availableSquares.length)];
 }
+
 
 function easyAIPlay(squares) {
   return generateRandomPlay(squares);
