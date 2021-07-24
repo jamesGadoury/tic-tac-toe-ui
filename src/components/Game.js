@@ -88,6 +88,17 @@ function generateRandomPlay(squares) {
   return availableSquares[getRandomInt(0, availableSquares.length)];
 }
 
+function generateWinningOrRandomPlay(squares) {
+  const availableSquares = generateAvailableSquares(squares);
+  for (let availableSquare of availableSquares) {
+    let squaresCopy = [...squares];
+    squaresCopy[availableSquare] = AI_PLAYER_MARKER;
+    if (calculateWinner(squaresCopy)) {
+      return availableSquare;
+    }
+  }
+  return generateRandomPlay(squares);
+}
 
 function easyAIPlay(squares) {
   return generateRandomPlay(squares);
@@ -101,7 +112,7 @@ function difficultAIPlay(squares) {
     }
     return randomCornerPlay(squares);
   }
-  return generateRandomPlay(squares);
+  return generateWinningOrRandomPlay(squares);
 }
 
 function generateAIPlay(difficulty, squares) {
