@@ -83,7 +83,11 @@ function generateRandomPlay(squares) {
   return availableSquares[getRandomInt(0, availableSquares.length)];
 }
 
-function generateAIPlay(squares) {
+function easyAIPlay(squares) {
+  return generateRandomPlay(squares);
+}
+
+function difficultAIPlay(squares) {
   // three condition action rules based on AI always going second
   if (moveNumber(squares) === 1) {
     if (cornerWasPlayed(squares)) {
@@ -92,6 +96,10 @@ function generateAIPlay(squares) {
     return randomCornerPlay(squares);
   }
   return generateRandomPlay(squares);
+}
+
+function generateAIPlay(difficulty, squares) {
+  return (difficulty === 'Easy' ? easyAIPlay(squares) : difficultAIPlay(squares));
 }
 
 function playerThisMove(move) {
@@ -136,6 +144,8 @@ function Game() {
   const [history, setHistory] = useState([{
     squares: Array(9).fill(null),
   }]);
+
+  const [difficulty, setDifficulty] = useState('Easy');
 
   const handleClick = (i) => {
     const current = history[history.length - 1];
@@ -185,12 +195,16 @@ function Game() {
         calculateDraw(squares) || calculateWinner(squares)) {
       return;
     }
-    handleAIPlay(generateAIPlay(squares));
+    handleAIPlay(generateAIPlay(difficulty, squares));
   }, [history]);
 
 
   const jumpTo = (move) => {
     setHistory(history.slice(0, move+1));
+  }
+
+  const changeDifficulty = () => {
+    setDifficulty(difficulty === 'Easy' ? 'Hard' : 'Easy');
   }
 
   const squares = history[history.length-1].squares;
@@ -212,6 +226,12 @@ function Game() {
 
   return (
     <div className="game">
+      <div className="game-info">
+        <Button
+          text={difficulty}
+          onClick={() => changeDifficulty()}
+        />
+      </div>
       <div className="game-board">
         <Board 
           squares={squares}
