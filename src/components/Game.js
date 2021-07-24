@@ -219,7 +219,7 @@ function Game() {
         />
       </div>
       <div className="game-info">
-        <div>{status}</div>
+        <h3>{status}</h3>
         <ol>{moves}</ol>
       </div>
     </div>

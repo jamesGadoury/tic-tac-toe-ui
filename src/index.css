@@ -5,6 +5,7 @@ body {
 
 ol, ul {
   padding-left: 30px;
+  text-align: left;
 }
 
 .board-row:after {
@@ -40,6 +41,11 @@ ol, ul {
   background: #ddd;
 }
 
+.app {
+  margin-top: 150px;
+  text-align: center;
+}
+
 .game {
   display: flex;
   flex-direction: row;
@@ -47,14 +53,9 @@ ol, ul {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  min-width: 500px;
 }
 
 .game-info {
   margin-left: 20px;
-}
-
-.move-button {
-  text-decoration: none;
-  margin: 4px 2px;
-  border-radius: 12px;
 }
