@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import '../index.css';
 import { Board } from './Board';
+import { Button } from './Button';
 
 const HUMAN_PLAYER_MARKER = 'X';
 const AI_PLAYER_MARKER    = 'O';
@@ -196,12 +197,15 @@ function Game() {
   const status = statusOfBoard(squares); 
 
   const moves = history.map((step, move) => {
-    const desc = play(history, move); 
+    const description = play(history, move); 
     return (
       // we add a key to give React the ability to know
       // what components to update
       <li key={move} className="move-button"> 
-        <button onClick={() => jumpTo(move)}>{desc}</button>
+        <Button
+          text={description}
+          onClick={() => jumpTo(move)}
+        />
       </li>
     );
   });
