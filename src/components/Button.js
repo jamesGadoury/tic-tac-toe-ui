@@ -1,7 +1,8 @@
 import React from 'react';
 import '../index.css';
 import { AwesomeButton } from "react-awesome-button";
-import AwesomeButtonStyles from "react-awesome-button/src/styles/styles.scss";
+// import AwesomeButtonStyles from "react-awesome-button/src/styles/styles.scss";
+import 'react-awesome-button/dist/themes/theme-blue.css';
 
 function Button(props) {
   return (

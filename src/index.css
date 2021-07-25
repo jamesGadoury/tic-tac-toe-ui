@@ -1,11 +1,22 @@
 body {
-  font: 14px "Century Gothic", Futura, sans-serif;
+  font: 10px "Century Gothic", Futura, sans-serif;
+}
+
+@media (min-width: 600px) {
+  body {
+    font-size: 14px;
+  }
 }
 
 ol, ul {
-  padding-left: 30px;
   text-align: left;
   min-width: 300px;
+}
+
+@media (min-width: 600px) {
+  ol, ul {
+    padding-left: 30px;
+  }
 }
 
 .board-row:after {
@@ -25,16 +36,40 @@ ol, ul {
   font-size: 24px;
   font-weight: bold;
   line-height: 34px;
-  height: 70px;
-  margin-right: -1px;
+  /* margin-right: -1px; */
   margin-top: -1px;
   padding: 0;
   text-align: center;
+  height: 70px;
   width: 70px;
+}
+
+@media (min-width: 600px) {
+  .square {
+    height: 140px;
+    width: 140px;
+  }
 }
 
 .square:focus {
   outline: none;
+}
+
+.game-board {
+  min-width: 250px;
+  max-width: 250px;
+  height: auto;
+  margin: 0 auto;
+  padding: 10px;
+  position: relative
+}
+
+@media (min-width: 600px) {
+  .game-board {
+    margin-left: 0px;
+    min-width: 500px;
+    max-width: 500px;
+  }
 }
 
 .kbd-navigation .square:focus {
@@ -42,21 +77,36 @@ ol, ul {
 }
 
 .app {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
   text-align: center;
 }
 
 .game {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 500px;
-  min-height: 500px;
+  min-height: 300px;
+  min-width: 1vw;
+  margin: 0 auto;
+  padding: 10px;
+  position: relative
 }
 
-.game-info {
-  margin-left: 20px;
-  margin-right: 20px;
+@media (min-width: 600px) {
+  .game {
+    flex-direction: row;
+    min-width: 500px;
+    min-height: 500px;
+  }
+}
+
+@media (min-width: 600px) {
+  .game-info {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
 }
