@@ -88,7 +88,7 @@ function generateRandomPlay(squares) {
   return availableSquares[getRandomInt(0, availableSquares.length)];
 }
 
-function generateWinningOrRandomPlay(squares) {
+function generateWinningPlay(squares) {
   const availableSquares = generateAvailableSquares(squares);
   for (let availableSquare of availableSquares) {
     let squaresCopy = [...squares];
@@ -97,6 +97,32 @@ function generateWinningOrRandomPlay(squares) {
       return availableSquare;
     }
   }
+  return null;
+}
+
+function generateBlockingPlay(squares) {
+  const availableSquares = generateAvailableSquares(squares);
+  for (let availableSquare of availableSquares) {
+    let squaresCopy = [...squares];
+    squaresCopy[availableSquare] = HUMAN_PLAYER_MARKER;
+    if (calculateWinner(squaresCopy)) {
+      return availableSquare;
+    }
+  }
+  return null;
+}
+
+function generateVitalOrRandomPlay(squares) {
+  const winningPlay = generateWinningPlay(squares);
+  if (winningPlay) {
+    return winningPlay;
+  }
+
+  const blockingPlay = generateBlockingPlay(squares);
+  if (blockingPlay) {
+    return blockingPlay;
+  }
+
   return generateRandomPlay(squares);
 }
 
@@ -112,7 +138,7 @@ function difficultAIPlay(squares) {
     }
     return randomCornerPlay(squares);
   }
-  return generateWinningOrRandomPlay(squares);
+  return generateVitalOrRandomPlay(squares);
 }
 
 function generateAIPlay(difficulty, squares) {
