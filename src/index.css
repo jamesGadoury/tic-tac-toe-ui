@@ -1,11 +1,11 @@
 body {
   font: 14px "Century Gothic", Futura, sans-serif;
-  margin: 20px;
 }
 
 ol, ul {
   padding-left: 30px;
   text-align: left;
+  min-width: 300px;
 }
 
 .board-row:after {
@@ -42,7 +42,6 @@ ol, ul {
 }
 
 .app {
-  margin-top: 150px;
   text-align: center;
 }
 
@@ -54,6 +53,7 @@ ol, ul {
   top: 50%;
   transform: translate(-50%, -50%);
   min-width: 500px;
+  min-height: 500px;
 }
 
 .game-info {
