@@ -88,11 +88,11 @@ function generateRandomPlay(squares) {
   return availableSquares[getRandomInt(0, availableSquares.length)];
 }
 
-function generateWinningPlay(squares) {
+function generateWinningPlayIfAvailable(squares, player_marker) {
   const availableSquares = generateAvailableSquares(squares);
   for (let availableSquare of availableSquares) {
     let squaresCopy = [...squares];
-    squaresCopy[availableSquare] = AI_PLAYER_MARKER;
+    squaresCopy[availableSquare] = player_marker;
     if (calculateWinner(squaresCopy)) {
       return availableSquare;
     }
@@ -100,16 +100,12 @@ function generateWinningPlay(squares) {
   return null;
 }
 
+function generateWinningPlay(squares) {
+  return generateWinningPlayIfAvailable(squares, AI_PLAYER_MARKER);
+}
+
 function generateBlockingPlay(squares) {
-  const availableSquares = generateAvailableSquares(squares);
-  for (let availableSquare of availableSquares) {
-    let squaresCopy = [...squares];
-    squaresCopy[availableSquare] = HUMAN_PLAYER_MARKER;
-    if (calculateWinner(squaresCopy)) {
-      return availableSquare;
-    }
-  }
-  return null;
+  return generateWinningPlayIfAvailable(squares, HUMAN_PLAYER_MARKER);
 }
 
 function generateVitalOrRandomPlay(squares) {
