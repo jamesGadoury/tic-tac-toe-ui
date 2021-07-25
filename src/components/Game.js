@@ -269,9 +269,9 @@ function Game() {
   return (
     <div className="game">
       <div className="game-info">
-        <h3>AI Difficulty</h3>
+        <h3>AI Difficulty: {difficulty}</h3>
         <Button
-          text={difficulty}
+          text={"Change Difficulty"}
           onClick={() => changeDifficulty()}
         />
       </div>
