@@ -46,8 +46,8 @@ function statusOfBoard(squares) {
   if (draw) {
     return 'Draw';
   }
-  
-  return `Current player's turn: ${currentPlayerMarker(squares)}`
+
+  return (currentPlayerIsAI(squares) ? 'Opponent AI turn: O' : 'Your turn: X');
 }
 
 function cornerWasPlayed(squares) {
@@ -187,7 +187,7 @@ function Game() {
   }
   
   useEffect(() => {
-    const handleAIPlay = (i) => {
+    const handleAIPlay = async (i) => {
       const current = history[history.length - 1];
 
       // replace data with a new copy, instead of mutating original data
@@ -199,6 +199,9 @@ function Game() {
       if (!currentPlayerIsAI(squares)) {
         console.log("handleAIPlay called while current player is human!!!");
       }
+
+      // insert arbitrary sleep so that ai's response isn't instant
+      await new Promise(r => setTimeout(r, 500)); 
 
       squares[i] = AI_PLAYER_MARKER;
 
