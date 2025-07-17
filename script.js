@@ -1,4 +1,3 @@
-// script.js
 const HUMAN    = 'X';
 const COMPUTER = 'O';
 
@@ -10,16 +9,15 @@ const WIN_LINES = Object.freeze([
 ]);
 
 class TicTacToe {
-  // private game state
   #boardState;
   #isGameOver;
   #cells = [];
 
   constructor() {
     // grab DOM refs once
-    this.boardEl   = document.getElementById('board');
-    this.messageEl = document.getElementById('message');
-    this.resetBtn  = document.getElementById('reset');
+    this.boardElement   = document.getElementById('board');
+    this.messageElement = document.getElementById('message');
+    this.resetBtn       = document.getElementById('reset');
 
     // wire up reset and init on load
     this.resetBtn.addEventListener('click', () => this.init());
@@ -30,10 +28,10 @@ class TicTacToe {
     // initialize state
     this.#boardState = Array(9).fill(null);
     this.#isGameOver = false;
-    this.messageEl.textContent = '';
+    this.messageElement.textContent = '';
 
     // clear & rebuild board in one batch
-    this.boardEl.replaceChildren();
+    this.boardElement.replaceChildren();
     const frag = document.createDocumentFragment();
     this.#cells = [];
 
@@ -49,7 +47,7 @@ class TicTacToe {
       this.#cells[idx] = btn;
     });
 
-    this.boardEl.replaceChildren(frag);
+    this.boardElement.replaceChildren(frag);
   }
 
   onCellClick(e) {
@@ -75,24 +73,21 @@ class TicTacToe {
   }
 
   checkEnd(player) {
-    // win?
     const line = WIN_LINES.find(l => l.every(i => this.#boardState[i] === player));
     if (line) {
       this.#isGameOver = true;
       line.forEach(i => this.#cells[i].classList.add('win'));
-      this.messageEl.textContent = `${player} wins!`;
+      this.messageElement.textContent = `${player} wins!`;
       return true;
     }
-    // draw?
     if (this.#boardState.every(cell => cell !== null)) {
       this.#isGameOver = true;
-      this.messageEl.textContent = "It's a draw!";
+      this.messageElement.textContent = "It's a draw!";
       return true;
     }
     return false;
   }
 
-  // AI hook — swap this out for your own algorithm
   getComputerMove(board) {
     return this.simpleAI(board);
   }
@@ -103,5 +98,4 @@ class TicTacToe {
   }
 }
 
-// kick everything off
 new TicTacToe();
