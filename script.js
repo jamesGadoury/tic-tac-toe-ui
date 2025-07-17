@@ -201,19 +201,17 @@ class TicTacToe {
             let possibleBoard = [...board];
             possibleBoard[i] = COMPUTER;
 
-            values.set(i, this.#agentValueTable.get(possibleBoard));
+            let value = this.#agentValueTable.get(possibleBoard);
+            values.set(i, value);
         }
 
         const maxEntry = Array.from(values.entries()).reduce((max, entry) => entry[1] > max[1] ? entry : max);
 
         let currentVal = this.#agentValueTable.get(board);
-        console.log("currentVal", currentVal);
         let lr = 0.5;
         let eps = 0.2;
         let p = Math.random();
-        console.log("p", p);
-        if (1 - eps < p) {
-            console.log("explore");
+        if (p < eps) {
             // exploration move
             //
             // TODO: this might actually select the greedy value
@@ -226,7 +224,6 @@ class TicTacToe {
         }
 
         this.#agentValueTable.set(board, currentVal + lr * (maxEntry[1] - currentVal));
-        console.log("exploit: updatedVal", this.#agentValueTable.get(board));
         return maxEntry[0];
     }
 
