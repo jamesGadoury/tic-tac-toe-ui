@@ -1,10 +1,6 @@
 :root {
     --cell-size: 100px;
     --gap: 5px;
-    /* --color-bg: #012A36; */
-    /* --color-text: #29274C; */
-    /* --color-primary: #6200ee; */
-    /* --color-win: #00c853; */
     --color-gunmetal: #012A36;
     --color-space-cadet: #29274C;
     --color-royal-purple: #7E52A0;
@@ -14,13 +10,14 @@
 
 * {
     box-sizing: border-box;
+    font-weight: bold;
 }
 
 body {
     margin: 0;
     font-family: system-ui, sans-serif;
     background: var(--color-gunmetal);
-    color: var(--color-royal-purple);
+    color: var(--color-fairy-tale);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -42,8 +39,6 @@ main {
     width: var(--cell-size);
     height: var(--cell-size);
     font-size: 2rem;
-    /* background: var(--color-fairy-tale); */
-    /* border: 2px solid var(--color-lilac); */
     background: var(--color-lilac);
     border: 2px solid var(--color-fairy-tale);
     display: flex;
@@ -63,7 +58,6 @@ main {
 }
 
 #message {
-    font-weight: bold;
     font-size: 1.5rem;
     padding: 0.5rem 1rem;
 }
@@ -72,7 +66,7 @@ main {
     padding: 0.5rem 1rem;
     font-size: 1rem;
     background: var(--color-royal-purple);
-    color: white;
+    color: var(--color-fairy-tale);
     border: none;
     border-radius: 4px;
     cursor: pointer;
