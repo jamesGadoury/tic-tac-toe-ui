@@ -73,27 +73,91 @@ class TicTacToe {
   }
 
   checkEnd(player) {
-    const line = WIN_LINES.find(l => l.every(i => this.#boardState[i] === player));
-    if (line) {
+    if (this.isWin(this.#boardState, player)) {
       this.#isGameOver = true;
-      line.forEach(i => this.#cells[i].classList.add('win'));
+      // highlight winning cells
+      WIN_LINES
+        .find(line => line.every(i => this.#boardState[i] === player))
+        .forEach(i => this.#cells[i].classList.add('win'));
       this.messageElement.textContent = `${player} wins!`;
       return true;
     }
-    if (this.#boardState.every(cell => cell !== null)) {
+
+    if (this.isDraw(this.#boardState)) {
       this.#isGameOver = true;
       this.messageElement.textContent = "It's a draw!";
       return true;
     }
+
     return false;
   }
 
-  getComputerMove(board) {
-    return this.simpleAI(board);
+  /**
+   * Check if `player` has a winning line on a given board array.
+   */
+  isWin(board, player) {
+    return WIN_LINES.some(line => line.every(i => board[i] === player));
   }
 
-  simpleAI(board) {
-    // trivial: first empty
+  /**
+   * Check if the board is full (and no one has won).
+   */
+  isDraw(board) {
+    return board.every(cell => cell !== null)
+        && !this.isWin(board, HUMAN)
+        && !this.isWin(board, COMPUTER);
+  }
+
+  /**
+   * Evaluate the outcome of placing `player` at `idx` on a *clone* of `board`.
+   * Returns one of:
+   *   'win'     — player immediately wins
+   *   'draw'    — board becomes full without a win
+   *   'loss'    — opponent can win on their next move
+   *   'neutral' — none of the above (game continues)
+   */
+  evaluateMove(board, idx, player) {
+    if (board[idx] !== null) {
+      throw new Error(`Cell ${idx} is already occupied`);
+    }
+
+    // clone & apply
+    const b2 = [...board];
+    b2[idx] = player;
+
+    // immediate win?
+    if (this.isWin(b2, player)) {
+      return 'win';
+    }
+    // immediate draw?
+    if (this.isDraw(b2)) {
+      return 'draw';
+    }
+    // could opponent win next?
+    const opponent = (player === HUMAN ? COMPUTER : HUMAN);
+    for (let i = 0; i < 9; i++) {
+      if (b2[i] === null) {
+        const b3 = [...b2];
+        b3[i] = opponent;
+        if (this.isWin(b3, opponent)) {
+          return 'loss';
+        }
+      }
+    }
+    // otherwise the game goes on
+    return 'neutral';
+  }
+
+  // ——— AI hook ———
+
+  getComputerMove(board) {
+    // pick any winning move first
+    for (let i = 0; i < 9; i++) {
+      if (board[i] === null && this.evaluateMove(board, i, COMPUTER) === 'win') {
+        return i;
+      }
+    }
+    // fallback trivial
     return board.findIndex(cell => cell === null);
   }
 }
