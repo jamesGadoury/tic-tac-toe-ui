@@ -1,0 +1,73 @@
+:root {
+    --cell-size: 100px;
+    --gap: 5px;
+    --color-gunmetal: #012A36;
+    --color-space-cadet: #29274C;
+    --color-royal-purple: #7E52A0;
+    --color-lilac: #D295BF;
+    --color-fairy-tale: #E6BCCD;
+}
+
+* {
+    box-sizing: border-box;
+    font-weight: bold;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: var(--color-gunmetal);
+    color: var(--color-fairy-tale);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+main {
+    text-align: center;
+}
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(3, var(--cell-size));
+    gap: var(--gap);
+    margin: 1rem auto;
+}
+
+.cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    font-size: 2rem;
+    background: var(--color-lilac);
+    border: 2px solid var(--color-fairy-tale);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--color-space-cadet);
+}
+
+.cell:disabled {
+    cursor: not-allowed;
+}
+
+.cell.win {
+    background: var(--color-space-cadet);
+    color: white;
+}
+
+#message {
+    font-size: 1.5rem;
+    padding: 0.5rem 1rem;
+}
+
+#reset {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background: var(--color-royal-purple);
+    color: var(--color-fairy-tale);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
