@@ -79,7 +79,7 @@ class TicTacToe {
       WIN_LINES
         .find(line => line.every(i => this.#boardState[i] === player))
         .forEach(i => this.#cells[i].classList.add('win'));
-      this.messageElement.textContent = player == HUMAN ? 'You win :)' : 'Computer wins :(';
+      this.messageElement.textContent = player == HUMAN ? 'You win 😁' : 'Computer wins 🤖';
       return true;
     }
 
