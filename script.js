@@ -8,6 +8,13 @@ const WIN_LINES = Object.freeze([
     [0, 4, 8], [2, 4, 6]            // diagonals
 ]);
 
+const MoveOutcome = Object.freeze({
+    WIN: 'win',
+    DRAW: 'draw',
+    LOSS: 'loss',
+    NEUTRAL: 'neutral',
+});
+
 class TicTacToe {
     // private game state
     #boardState;
@@ -134,18 +141,18 @@ class TicTacToe {
         const b2 = [...board];
         b2[idx] = player;
 
-        if (TicTacToe.isWin(b2, player)) return 'win';
-        if (TicTacToe.isDraw(b2)) return 'draw';
+        if (TicTacToe.isWin(b2, player)) return MoveOutcome.WIN;
+        if (TicTacToe.isDraw(b2)) return MoveOutcome.DRAW;
 
         const opp = player === HUMAN ? COMPUTER : HUMAN;
         for (let i = 0; i < 9; i++) {
             if (b2[i] === null) {
                 const b3 = [...b2];
                 b3[i] = opp;
-                if (TicTacToe.isWin(b3, opp)) return 'loss';
+                if (TicTacToe.isWin(b3, opp)) return MoveOutcome.LOSS;
             }
         }
-        return 'neutral';
+        return MoveOutcome.NEUTRAL;
     }
 }
 
