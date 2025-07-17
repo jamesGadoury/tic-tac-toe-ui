@@ -15,11 +15,82 @@ const MoveOutcome = Object.freeze({
     NEUTRAL: 'neutral',
 });
 
+class ValueTable {
+    #table;
+    constructor() {
+        this.#table = new Map();
+
+        // NOTE: Using "base-N enumeration" to find all possible combinations.
+        //       There are potentially smarter things we can do 
+        //       (e.g. do not consider invalid combinations that aren't possible),
+        //       but not worrying about that now.
+
+        // there are 3 possible states, so we are doing base-3
+        const totalStates = 3 ** 9;
+        const nums = [0, 0, 0, 0, 0, 0, 0, 0, -1];
+
+        // TODO: "." should probably be a named character and replace null,
+        //       since we're using it in serialize as well
+        const digitMap = new Map()
+        digitMap.set(0, null);
+        digitMap.set(1, HUMAN);
+        digitMap.set(2, COMPUTER);
+
+        // first we initialize all states to 0.5
+        for (let _ = 0; _ < totalStates; ++_) {
+            // if (_ > 10) break;
+            let i = nums.findLastIndex((el) => el <= 2)
+            nums[i] += 1;
+            while (nums[i] == 3) {
+                // execute carries
+                nums[i] = 0;
+                i -= 1;
+                nums[i] += 1;
+            }
+
+            let board = nums.map(d => digitMap.get(d))
+            let estimatedValue = 0.5;
+            if (TicTacToe.isWin(board, HUMAN)) {
+                estimatedValue = 0.0;
+            } else if (TicTacToe.isWin(board, COMPUTER) || TicTacToe.isDraw(board)) {
+                estimatedValue = 1.0
+            }
+
+            this.#table.set(ValueTable.serialize(board), estimatedValue);
+        }
+    }
+
+    // serialize [null, 😁, 🤖, ...] -> '.😁🤖......'
+    static serialize(board) {
+        return board.map(c => c === HUMAN ? HUMAN : c === COMPUTER ? COMPUTER : '.').join('')
+    }
+
+    get(board) {
+        const key = ValueTable.serialize(board);
+        if (!this.#table.has(key)) {
+            console.log(this.#table);
+            throw new Error(`Key ${key} does not exist in ValueTable`);
+        }
+        return this.#table.get(key);
+    }
+
+    set(board, value) {
+        const key = ValueTable.serialize(board);
+        if (!this.#table.has(key)) {
+            throw new Error(`Key ${key} does not exist in ValueTable`);
+        }
+        this.#table.set(key, value);
+    }
+}
+
 class TicTacToe {
     // private game state
     #boardState;
     #isGameOver;
     #cells = [];
+    // TODO: make this an agent function that can be selected
+    //       rather than expose the impl detail of using a table
+    #agentValueTable;
 
     constructor() {
         this.boardElement = document.getElementById('board');
@@ -28,6 +99,8 @@ class TicTacToe {
 
         this.resetBtn.addEventListener('click', () => this.init());
         window.addEventListener('DOMContentLoaded', () => this.init());
+
+        this.#agentValueTable = new ValueTable();
     }
 
     init() {
@@ -109,7 +182,7 @@ class TicTacToe {
     }
 
     // ——— instance AI hook (you can override this in a subclass) ———
-    getComputerMove(board) {
+    getNaiveMove(board) {
         // look for immediate win
         for (let i = 0; i < 9; i++) {
             if (board[i] === null && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
@@ -118,6 +191,43 @@ class TicTacToe {
         }
         // otherwise first empty
         return board.findIndex(c => c === null);
+    }
+    getComputerMove(board) {
+        let values = new Map();
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] != null) {
+                continue;
+            }
+            let possibleBoard = [...board];
+            possibleBoard[i] = COMPUTER;
+
+            values.set(i, this.#agentValueTable.get(possibleBoard));
+        }
+
+        const maxEntry = Array.from(values.entries()).reduce((max, entry) => entry[1] > max[1] ? entry : max);
+
+        let currentVal = this.#agentValueTable.get(board);
+        console.log("currentVal", currentVal);
+        let lr = 0.5;
+        let eps = 0.2;
+        let p = Math.random();
+        console.log("p", p);
+        if (1 - eps < p) {
+            console.log("explore");
+            // exploration move
+            //
+            // TODO: this might actually select the greedy value
+            //       as we don't filter it, but i'm tired and
+            //       don't care rn
+            const entries = Array.from(values.entries());
+            const randomIndex = Math.floor(Math.random() * entries.length);
+            const [cellIdx, _] = entries[randomIndex];
+            return cellIdx;
+        }
+
+        this.#agentValueTable.set(board, currentVal + lr * (maxEntry[1] - currentVal));
+        console.log("exploit: updatedVal", this.#agentValueTable.get(board));
+        return maxEntry[0];
     }
 
     static isWin(board, player) {
