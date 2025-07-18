@@ -111,7 +111,6 @@ class TicTacToe {
         this.actionBtn = document.getElementById('actionBtn');
         this.exportBtn = document.getElementById('exportEpsilon');
         this.importBtn = document.getElementById('importEpsilon');
-        this.importFile = document.getElementById('importEpsilonFile');
         this.statusEl = document.getElementById('statusEpsilon');
         this.modeSelect = document.getElementById('modeSelect');
         this.simLogEl = document.getElementById('simLog');
@@ -125,10 +124,9 @@ class TicTacToe {
         // Events
         this.actionBtn.addEventListener('click', e => { e.preventDefault(); this._onAction() });
         this.exportBtn.addEventListener('click', e => { e.preventDefault(); this._export() });
-        this.importBtn.addEventListener('click', e => { e.preventDefault(); this.importFile.click() });
-        this.importFile.addEventListener('change', e => {
-            const f = e.target.files[0]; if (f) this._import(f);
-            e.target.value = '';
+        this.importBtn.addEventListener('click', e => {
+            e.preventDefault();
+            this._promptImport();
         });
         this.modeSelect.addEventListener('change', () => this._onModeChange());
 
@@ -140,8 +138,6 @@ class TicTacToe {
     _onModeChange() {
         if (this.modeSelect.value === 'sim') {
             this.actionBtn.textContent = 'Start Simulation';
-            this.exportBtn.disabled = true;
-            this.importBtn.disabled = true;
             this.simLogContainer.style.display = 'block';   // show it
             this.simLogEl.innerHTML = '';
             this.simCount = 1;
@@ -294,6 +290,24 @@ class TicTacToe {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         this.statusEl.textContent = '✔ Table exported';
+    }
+
+    /** 
+     * Create a one‑off file input, trigger it, then hand
+     * the picked file to your existing _import() logic.
+     */
+    _promptImport() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        // when the user picks a file, call your existing importer
+        input.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) this._import(file);
+        });
+        // trigger the OS picker
+        input.click();
+        // you don't even need to append it to the DOM
     }
 
     _import(file) {

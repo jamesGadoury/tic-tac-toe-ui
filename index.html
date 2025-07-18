@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'self'; style-src 'self';">
     <title>Tic Tac Toe</title>
     <link rel="stylesheet" href="style.css" />
 </head>
@@ -43,7 +43,6 @@
             <button id="actionBtn">Reset Game</button>
             <button id="exportEpsilon">Export Agent Table</button>
             <button id="importEpsilon">Import Agent Table</button>
-            <input type="file" id="importEpsilonFile" accept=".json" style="display:none" />
             <span id="statusEpsilon"></span>
         </div>
     </main>
