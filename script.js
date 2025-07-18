@@ -272,11 +272,11 @@ class TicTacToe {
     }
 
     _next() {
-        this.#cur = 1 - this.#cur;
-        const nxt = this.#players[this.#cur];
+        const nxt = this.#players[1 - this.#cur];
         if (nxt.type === 'AGENT') {
-            this.msgEl.textContent = 'Agent thinking…';
-            setTimeout(() => this._agentMove(), 300);
+            const delay = this.#players[this.#cur] !== 'AGENT' ? 100 : 10;
+            this.msgEl.textContent = this.#players[this.#cur] !== 'AGENT' ? 'Agent thinking…' : '';
+            setTimeout(() => this._agentMove(), delay);
         } else {
             this.msgEl.textContent = 'Your turn';
         }
