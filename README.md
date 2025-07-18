@@ -8,3 +8,10 @@ python -m http.server 8000
 ```
 
 open this in your browser: http://localhost:8000/tests/test.html
+
+
+### install typescript
+```
+
+npm install -g typescript
+```
