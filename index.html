@@ -4,25 +4,18 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="
-            default-src 'none';
-            script-src 'self';
-            style-src 'self';
-            connect-src 'self';
-            img-src 'self';
-            font-src 'self';
-          ">
-    <title>Tic Tac Toe</title>
+    <title>Tic Tac Toe</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
     <main>
-        <h1>Tic Tac Toe</h1>
+        <h1>Tic Tac Toe</h1>
 
+        <!-- Choose who plays X and O -->
         <form id="player-selectors">
             <label>
-                Player X:
+                Player X:
                 <select id="playerX">
                     <option value="HUMAN">Human (😁)</option>
                     <option value="NAIVE">Naive Agent (🤖)</option>
@@ -30,25 +23,36 @@
                 </select>
             </label>
             <label>
-                Player O:
+                Player O:
                 <select id="playerO">
-                    <option value="HUMAN">Human (😁)</option>
                     <option value="NAIVE">Naive Agent (🤖)</option>
                     <option value="EPS_GREEDY">Epsilon‑Greedy Agent (🤖)</option>
                 </select>
             </label>
         </form>
 
-        <div id="board" aria-label="Tic Tac Toe board" role="grid"></div>
-
+        <!-- Game board and status -->
+        <div id="board" role="grid" aria-label="Tic Tac Toe board"></div>
         <div id="message" role="status" aria-live="polite"></div>
 
+        <!-- Controls -->
         <button id="reset">Reset Game</button>
-        <button id="saveTable">Save Agent Table</button>
-        <button id="loadTable">Load Agent Table</button>
+
+        <!-- Export/Import for ε‑Greedy tables -->
+        <form id="agent-management">
+            <label for="agentSelect">Agent:</label>
+            <select id="agentSelect">
+                <option value="0">Player X</option>
+                <option value="1">Player O</option>
+            </select>
+            <button id="exportAgentBtn">Export Table</button>
+            <button id="importAgentBtn">Import Table</button>
+            <input type="file" id="importAgentFile" accept=".json" style="display:none" />
+            <span id="agentStatus"></span>
+        </form>
     </main>
 
-    <script type="module" src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 
 </html>
