@@ -8,7 +8,6 @@
     --color-fairy-tale: #E6BCCD;
 }
 
-/* reset + base */
 * {
     box-sizing: border-box;
     font-weight: bold;
@@ -21,28 +20,28 @@ body {
     background: var(--color-gunmetal);
     color: var(--color-fairy-tale);
 
-    /* center horizontally, let content grow vertically */
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
 
-    /* allow scrolling if content is taller than viewport */
     min-height: 100vh;
     padding: 1rem;
 }
 
 main {
     text-align: center;
-
-    /* keep everything under ~360px so it fits phones */
     width: 100%;
     max-width: 360px;
+
+    /* new: stack children with extra vertical gap */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
 }
 
-/* player selectors (if you kept them in #player-selectors) */
 #player-selectors {
-    margin-bottom: 1rem;
     display: flex;
     gap: 0.5rem;
     justify-content: center;
@@ -54,29 +53,23 @@ main {
     font-size: 1rem;
 }
 
-/* center the board itself */
 #board {
     display: grid;
     grid-template-columns: repeat(3, var(--cell-size));
     gap: var(--gap);
-
-    /* ensure it’s centered in its container */
     justify-content: center;
-    margin: 0 auto 1rem;
+    /* no longer need margin-bottom since main’s gap handles it */
 }
 
-/* the cells */
 .cell {
     width: var(--cell-size);
     height: var(--cell-size);
     font-size: 2rem;
     background: var(--color-lilac);
     border: 2px solid var(--color-fairy-tale);
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     cursor: pointer;
     color: var(--color-space-cadet);
 }
@@ -105,10 +98,8 @@ main {
     cursor: pointer;
 }
 
-/* Shrink the cells on very narrow viewports so the 3×3 grid always fits */
 @media (max-width: 360px) {
     :root {
-        /* total horizontal padding on body = 2rem; minus two gaps */
         --cell-size: calc((100vw - 2rem - 2 * var(--gap)) / 3);
     }
 }
