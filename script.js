@@ -1,7 +1,9 @@
-const HUMAN = '😁';
-const COMPUTER = '🤖';
+const HUMAN = Object.freeze('😁');
+const COMPUTER = Object.freeze('🤖');
+const EMPTY = Object.freeze('.');
 
-// Immutable list of all winning triples
+const VALID_CELLS = Object.freeze([EMPTY, HUMAN, COMPUTER]);
+
 const WIN_LINES = Object.freeze([
     [0, 1, 2], [3, 4, 5], [6, 7, 8],  // rows
     [0, 3, 6], [1, 4, 7], [2, 5, 8],  // cols
@@ -27,42 +29,41 @@ class ValueTable {
 
         // there are 3 possible states, so we are doing base-3
         const totalStates = 3 ** 9;
+        // we initialize last element to -1 just so first
+        // loop updates it to 0 as our first state
         const nums = [0, 0, 0, 0, 0, 0, 0, 0, -1];
 
-        // TODO: "." should probably be a named character and replace null,
-        //       since we're using it in serialize as well
-        const digitMap = new Map()
-        digitMap.set(0, null);
-        digitMap.set(1, HUMAN);
-        digitMap.set(2, COMPUTER);
-
-        // first we initialize all states to 0.5
         for (let _ = 0; _ < totalStates; ++_) {
-            // if (_ > 10) break;
             let i = nums.findLastIndex((el) => el <= 2)
             nums[i] += 1;
+
             while (nums[i] == 3) {
                 // execute carries
                 nums[i] = 0;
-                i -= 1;
-                nums[i] += 1;
+                nums[--i] += 1;
             }
 
-            let board = nums.map(d => digitMap.get(d))
-            let estimatedValue = 0.5;
-            if (TicTacToe.isWin(board, HUMAN)) {
-                estimatedValue = 0.0;
-            } else if (TicTacToe.isWin(board, COMPUTER) || TicTacToe.isDraw(board)) {
-                estimatedValue = 1.0
-            }
+            const board = nums.map(num => VALID_CELLS[num])
+
+            const estimatedValue = (() => {
+                if (TicTacToe.isWin(board, HUMAN)) {
+                    return 0.0;
+                } else if (TicTacToe.isWin(board, COMPUTER) || TicTacToe.isDraw(board)) {
+                    return 1.0;
+                }
+                return 0.5;
+            })();
 
             this.#table.set(ValueTable.serialize(board), estimatedValue);
         }
     }
 
-    // serialize [null, 😁, 🤖, ...] -> '.😁🤖......'
+    // validate & serialize [.,😁,🤖,.,.,.,.,.,.] -> '.😁🤖......'
     static serialize(board) {
-        return board.map(c => c === HUMAN ? HUMAN : c === COMPUTER ? COMPUTER : '.').join('')
+        if (board.some((cell) => !VALID_CELLS.includes(cell))) {
+            throw new Error(`Board ${board} has 1 or more invalid cells. Valid cells are: ${VALID_CELLS}`);
+        }
+        return board.join('');
     }
 
     get(board) {
@@ -104,7 +105,7 @@ class TicTacToe {
     }
 
     init() {
-        this.#boardState = Array(9).fill(null);
+        this.#boardState = Array(9).fill(EMPTY);
         this.#isGameOver = false;
         this.currentPlayer = Math.random() < 0.5 ? HUMAN : COMPUTER;
         this.messageElement.textContent =
@@ -135,11 +136,14 @@ class TicTacToe {
 
     onCellClick(e) {
         const idx = Number(e.currentTarget.dataset.index);
-        if (this.#boardState[idx] || this.#isGameOver || this.currentPlayer !== HUMAN)
+        if (this.#boardState[idx] != EMPTY || this.#isGameOver || this.currentPlayer !== HUMAN) {
             return;
+        }
 
         this.playMove(idx, HUMAN);
-        if (this.checkEnd(HUMAN)) return;
+        if (this.checkEnd(HUMAN)) {
+            return;
+        }
 
         this.currentPlayer = COMPUTER;
         this._makeComputerMove();
@@ -185,17 +189,17 @@ class TicTacToe {
     getNaiveMove(board) {
         // look for immediate win
         for (let i = 0; i < 9; i++) {
-            if (board[i] === null && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
+            if (board[i] === EMPTY && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
                 return i;
             }
         }
         // otherwise first empty
-        return board.findIndex(c => c === null);
+        return board.findIndex(c => c === EMPTY);
     }
     getComputerMove(board) {
         let values = new Map();
         for (let i = 0; i < board.length; i++) {
-            if (board[i] != null) {
+            if (board[i] != EMPTY) {
                 continue;
             }
             let possibleBoard = [...board];
@@ -232,7 +236,7 @@ class TicTacToe {
     }
 
     static isDraw(board) {
-        return board.every(cell => cell !== null)
+        return board.every(cell => cell !== EMPTY)
             && !TicTacToe.isWin(board, HUMAN)
             && !TicTacToe.isWin(board, COMPUTER);
     }
@@ -242,7 +246,7 @@ class TicTacToe {
      * Returns 'win'|'draw'|'loss'|'neutral' for that hypothetical move.
      */
     static evaluateMove(board, idx, player) {
-        if (board[idx] !== null) {
+        if (board[idx] !== EMPTY) {
             throw new Error(`Cell ${idx} is already occupied`);
         }
         const b2 = [...board];
@@ -253,7 +257,7 @@ class TicTacToe {
 
         const opp = player === HUMAN ? COMPUTER : HUMAN;
         for (let i = 0; i < 9; i++) {
-            if (b2[i] === null) {
+            if (b2[i] === EMPTY) {
                 const b3 = [...b2];
                 b3[i] = opp;
                 if (TicTacToe.isWin(b3, opp)) return MoveOutcome.LOSS;
