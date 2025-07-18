@@ -1,8 +1,8 @@
 const HUMAN = Object.freeze('😁');
-const COMPUTER = Object.freeze('🤖');
+const AGENT = Object.freeze('🤖');
 const EMPTY = Object.freeze('.');
 
-const VALID_CELLS = Object.freeze([EMPTY, HUMAN, COMPUTER]);
+const VALID_CELLS = Object.freeze([EMPTY, HUMAN, AGENT]);
 
 const WIN_LINES = Object.freeze([
     [0, 1, 2], [3, 4, 5], [6, 7, 8],  // rows
@@ -17,11 +17,29 @@ const MoveOutcome = Object.freeze({
     NEUTRAL: 'neutral',
 });
 
-class ValueTable {
-    #table;
-    constructor() {
-        this.#table = new Map();
+class NaiveAgent {
+    playMove(board) {
+        // look for immediate win
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === EMPTY && TicTacToe.evaluateMove(board, i, AGENT) === 'win') {
+                return i;
+            }
+        }
 
+        const availableMoves = board
+            .map((cell, index) => cell === EMPTY ? index : null)
+            .filter(index => index !== null);
+
+        if (availableMoves.length === 0) {
+            throw new Error("No available moves");
+        }
+        return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+    }
+}
+
+class ValueTable {
+    #table = new Map();
+    constructor() {
         // NOTE: Using "base-N enumeration" to find all possible combinations.
         //       There are potentially smarter things we can do 
         //       (e.g. do not consider invalid combinations that aren't possible),
@@ -48,7 +66,7 @@ class ValueTable {
             const estimatedValue = (() => {
                 if (TicTacToe.isWin(board, HUMAN)) {
                     return 0.0;
-                } else if (TicTacToe.isWin(board, COMPUTER) || TicTacToe.isDraw(board)) {
+                } else if (TicTacToe.isWin(board, AGENT) || TicTacToe.isDraw(board)) {
                     return 1.0;
                 }
                 return 0.5;
@@ -84,14 +102,68 @@ class ValueTable {
     }
 }
 
+class TabularEpsilonGreedyAgent {
+    #valueTable = new ValueTable();
+
+    playMove(board) {
+        const values = (() => {
+            let values = new Map();
+            for (let i = 0; i < board.length; i++) {
+                if (board[i] != EMPTY) {
+                    continue;
+                }
+                const possibleBoard = [
+                    ...board.slice(0, i),
+                    AGENT,
+                    ...board.slice(i + 1)
+                ];
+
+                values.set(i, this.#valueTable.get(possibleBoard));
+            }
+            return values;
+        })();
+
+        // TODO: Make configurable
+        const eps = 0.1;
+
+        // NOTE: P(X=exploitation) = 1 - ε .
+        //       P(X=exploration) = ε;
+
+        // find the greedy action (highest value)
+        const entries = Array.from(values.entries()); // [ [cellIdx, val], … ]
+        const [greedyIdx, greedyVal] = entries.reduce(
+            ([bestIdx, bestVal], [idx, val]) =>
+                val > bestVal ? [idx, val] : [bestIdx, bestVal],
+            entries[0]
+        );
+
+        // if there’s more than one action and we “explore” with prob. ε
+        if (values.size > 1 && Math.random() < eps) {
+            // exploration move
+
+            // filter out the greedy move so we definitely explore something else
+            const nonGreedy = entries.filter(([idx]) => idx !== greedyIdx);
+            const randomPick = nonGreedy[
+                Math.floor(Math.random() * nonGreedy.length)
+            ];
+            return randomPick[0];
+        }
+
+        // TODO: make configurable
+        const lr = 0.5;
+
+        const currentVal = this.#valueTable.get(board);
+        this.#valueTable.set(board, currentVal + lr * (greedyVal - currentVal));
+        return greedyIdx;
+    }
+}
+
 class TicTacToe {
-    // private game state
     #boardState;
     #isGameOver;
     #cells = [];
-    // TODO: make this an agent function that can be selected
-    //       rather than expose the impl detail of using a table
-    #agentValueTable;
+    // TODO: make configurable
+    #agent = new TabularEpsilonGreedyAgent();
 
     constructor() {
         this.boardElement = document.getElementById('board');
@@ -100,14 +172,12 @@ class TicTacToe {
 
         this.resetBtn.addEventListener('click', () => this.init());
         window.addEventListener('DOMContentLoaded', () => this.init());
-
-        this.#agentValueTable = new ValueTable();
     }
 
     init() {
         this.#boardState = Array(9).fill(EMPTY);
         this.#isGameOver = false;
-        this.currentPlayer = Math.random() < 0.5 ? HUMAN : COMPUTER;
+        this.currentPlayer = Math.random() < 0.5 ? HUMAN : AGENT;
         this.messageElement.textContent =
             this.currentPlayer === HUMAN ? "You start!" : "Computer starts!";
 
@@ -129,8 +199,8 @@ class TicTacToe {
 
         this.boardElement.replaceChildren(frag);
 
-        if (this.currentPlayer === COMPUTER) {
-            this._makeComputerMove();
+        if (this.currentPlayer === AGENT) {
+            this._makeAgentMove();
         }
     }
 
@@ -145,8 +215,8 @@ class TicTacToe {
             return;
         }
 
-        this.currentPlayer = COMPUTER;
-        this._makeComputerMove();
+        this.currentPlayer = AGENT;
+        this._makeAgentMove();
     }
 
     playMove(idx, player) {
@@ -176,59 +246,13 @@ class TicTacToe {
         return false;
     }
 
-    _makeComputerMove() {
-        const idx = this.getComputerMove([...this.#boardState]);
+    _makeAgentMove() {
+        const idx = this.#agent.playMove([...this.#boardState]);
         if (idx < 0) return;
-        this.playMove(idx, COMPUTER);
-        if (this.checkEnd(COMPUTER)) return;
+        this.playMove(idx, AGENT);
+        if (this.checkEnd(AGENT)) return;
         this.currentPlayer = HUMAN;
         this.messageElement.textContent = "Your turn";
-    }
-
-    // ——— instance AI hook (you can override this in a subclass) ———
-    getNaiveMove(board) {
-        // look for immediate win
-        for (let i = 0; i < 9; i++) {
-            if (board[i] === EMPTY && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
-                return i;
-            }
-        }
-        // otherwise first empty
-        return board.findIndex(c => c === EMPTY);
-    }
-    getComputerMove(board) {
-        let values = new Map();
-        for (let i = 0; i < board.length; i++) {
-            if (board[i] != EMPTY) {
-                continue;
-            }
-            let possibleBoard = [...board];
-            possibleBoard[i] = COMPUTER;
-
-            let value = this.#agentValueTable.get(possibleBoard);
-            values.set(i, value);
-        }
-
-        const maxEntry = Array.from(values.entries()).reduce((max, entry) => entry[1] > max[1] ? entry : max);
-
-        let currentVal = this.#agentValueTable.get(board);
-        let lr = 0.5;
-        let eps = 0.2;
-        let p = Math.random();
-        if (p < eps) {
-            // exploration move
-            //
-            // TODO: this might actually select the greedy value
-            //       as we don't filter it, but i'm tired and
-            //       don't care rn
-            const entries = Array.from(values.entries());
-            const randomIndex = Math.floor(Math.random() * entries.length);
-            const [cellIdx, _] = entries[randomIndex];
-            return cellIdx;
-        }
-
-        this.#agentValueTable.set(board, currentVal + lr * (maxEntry[1] - currentVal));
-        return maxEntry[0];
     }
 
     static isWin(board, player) {
@@ -238,7 +262,7 @@ class TicTacToe {
     static isDraw(board) {
         return board.every(cell => cell !== EMPTY)
             && !TicTacToe.isWin(board, HUMAN)
-            && !TicTacToe.isWin(board, COMPUTER);
+            && !TicTacToe.isWin(board, AGENT);
     }
 
     /**
@@ -255,7 +279,7 @@ class TicTacToe {
         if (TicTacToe.isWin(b2, player)) return MoveOutcome.WIN;
         if (TicTacToe.isDraw(b2)) return MoveOutcome.DRAW;
 
-        const opp = player === HUMAN ? COMPUTER : HUMAN;
+        const opp = player === HUMAN ? AGENT : HUMAN;
         for (let i = 0; i < 9; i++) {
             if (b2[i] === EMPTY) {
                 const b3 = [...b2];
