@@ -61,8 +61,17 @@ class ValueTable {
 // — ε‑Greedy Agent —
 class TabularEpsilonGreedyAgent {
     #table;
-    constructor(initial) { this.#table = new ValueTable(initial); }
+    constructor(initial, eps = 0.1, lr = 0.5) {
+        this.#table = new ValueTable(initial);
+        this.eps = eps;
+        this.lr = lr;
+    }
+
     playMove(board) {
+        // use instance vars instead of hard‑coded
+        const eps = this.eps;
+        const lr = this.lr;
+
         const vals = new Map();
         for (let i = 0; i < 9; i++) {
             if (board[i] === EMPTY) {
@@ -70,20 +79,25 @@ class TabularEpsilonGreedyAgent {
                 vals.set(i, this.#table.get(b2));
             }
         }
-        const eps = 0.1, lr = 0.5;
         const entries = [...vals.entries()];
         const [gI, gV] = entries.reduce(
             ([bi, bv], [i, v]) => v > bv ? [i, v] : [bi, bv],
             entries[0]
         );
+
+        // exploration vs exploitation
         if (entries.length > 1 && Math.random() < eps) {
             const other = entries.filter(([i]) => i !== gI);
             return other[Math.floor(Math.random() * other.length)][0];
         }
+
+        // update
         const cur = this.#table.get(board);
         this.#table.set(board, cur + lr * (gV - cur));
+
         return gI;
     }
+
     exportTable() { return this.#table.toObject(); }
 }
 
@@ -130,6 +144,10 @@ class TicTacToe {
         });
         this.modeSelect.addEventListener('change', () => this._onModeChange());
 
+        // grab your new inputs
+        this.epsInput = document.getElementById('epsInput');
+        this.lrInput = document.getElementById('lrInput');
+
         // Initial
         this._onModeChange();
         this.init();
@@ -137,11 +155,17 @@ class TicTacToe {
 
     _onModeChange() {
         if (this.modeSelect.value === 'sim') {
+            // TODO: should be able to re-enable eps/lr inputs when simulation is stopped
+            //       so that user could change training parameters at different intervals
+            this.epsInput.disabled = true;
+            this.lrInput.disabled = true;
             this.actionBtn.textContent = 'Start Simulation';
             this.simLogContainer.style.display = 'block';   // show it
             this.simLogEl.innerHTML = '';
             this.simCount = 1;
         } else {
+            this.epsInput.disabled = false;
+            this.lrInput.disabled = false;
             this.actionBtn.textContent = 'Reset Game';
             this.exportBtn.disabled = false;
             this.importBtn.disabled = false;
@@ -177,10 +201,15 @@ class TicTacToe {
     }
 
     init() {
-        // Player 1: ε‑greedy
+        const eps = parseFloat(this.epsInput.value);
+        const lr = parseFloat(this.lrInput.value);
+
+        // Player 1: ε‑greedy
         const p1 = {
-            type: 'AGENT', logical: PLAYER_ONE, display: PLAYER_ONE,
-            agent: new TabularEpsilonGreedyAgent(this.epsilonData)
+            type: 'AGENT',
+            logical: PLAYER_ONE,
+            display: PLAYER_ONE,
+            agent: new TabularEpsilonGreedyAgent(this.epsilonData, eps, lr)
         };
         // Player 2: HUMAN in play, NaiveAgent in sim
         const p2 = (this.modeSelect.value === 'play')
