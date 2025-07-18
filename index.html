@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self';">
     <title>Tic Tac Toe</title>
     <link rel="stylesheet" href="style.css" />
 </head>
@@ -12,27 +14,36 @@
     <main>
         <h1>Tic Tac Toe</h1>
 
-        <!-- Player 2 selector (no emojis here) -->
+        <!-- Mode selector -->
+        <label for="modeSelect">
+            Mode:
+            <select id="modeSelect">
+                <option value="play">Play vs Epsilon</option>
+                <option value="sim">Simulate Naive vs Epsilon</option>
+            </select>
+        </label>
+
+        <!-- Game board -->
+        <div id="board" role="grid" aria-label="Tic Tac Toe board"></div>
+        <div id="message" role="status" aria-live="polite"></div>
+
+        <!-- Controls -->
+        <button id="actionBtn">Reset Game</button>
+        <button id="exportEpsilon">Export Agent Table</button>
+        <button id="importEpsilon">Import Agent Table</button>
+        <input type="file" id="importEpsilonFile" accept=".json" style="display:none" />
+        <span id="statusEpsilon"></span>
+
+        <!-- Player 2 selector (only in play mode) -->
         <form id="player2-selector">
             <label>
                 Player 2:
                 <select id="player2Select">
                     <option value="HUMAN">Human</option>
-                    <option value="NAIVE">Naive Agent</option>
+                    <option value="NAIVE">Naive Agent</option>
                 </select>
             </label>
         </form>
-
-        <!-- Board + status -->
-        <div id="board" role="grid" aria-label="Tic Tac Toe board"></div>
-        <div id="message" role="status" aria-live="polite"></div>
-
-        <!-- Controls -->
-        <button id="reset">Reset Game</button>
-        <button id="exportEpsilon">Export Agent Table</button>
-        <button id="importEpsilon">Import Agent Table</button>
-        <input type="file" id="importEpsilonFile" accept=".json" style="display:none" />
-        <span id="statusEpsilon"></span>
     </main>
 
     <script src="script.js"></script>

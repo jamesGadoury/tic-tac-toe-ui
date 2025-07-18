@@ -6,14 +6,12 @@ const PLAYER_ONE = '🤖';
 const PLAYER_TWO = '👾';
 const VALID_CELLS = [EMPTY, PLAYER_ONE, PLAYER_TWO];
 
-// Winning‐line index sets
 const WIN_LINES = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
     [0, 3, 6], [1, 4, 7], [2, 5, 8],
     [0, 4, 8], [2, 4, 6],
 ];
 
-// Move outcomes
 const MoveOutcome = {
     WIN: 'win',
     DRAW: 'draw',
@@ -21,10 +19,9 @@ const MoveOutcome = {
     NEUTRAL: 'neutral',
 };
 
-// — ValueTable: 3⁹ states → value, serializable —
+// — ValueTable (unchanged) —
 class ValueTable {
     #table = new Map();
-
     constructor(initial) {
         if (initial) {
             this.#table = new Map(Object.entries(initial));
@@ -35,91 +32,67 @@ class ValueTable {
                 let i = nums.findLastIndex(n => n <= 2);
                 nums[i]++;
                 while (nums[i] === 3) {
-                    nums[i] = 0;
-                    i--;
-                    nums[i]++;
+                    nums[i] = 0; i--; nums[i]++;
                 }
                 const board = nums.map(n => VALID_CELLS[n]);
                 const v = (() => {
                     if (TicTacToe.isWin(board, PLAYER_TWO)) return 0.0;
-                    if (TicTacToe.isWin(board, PLAYER_ONE)
-                        || TicTacToe.isDraw(board)) return 1.0;
+                    if (TicTacToe.isWin(board, PLAYER_ONE) || TicTacToe.isDraw(board)) return 1.0;
                     return 0.5;
                 })();
                 this.#table.set(board.join(''), v);
             }
         }
     }
-
-    toObject() {
-        return Object.fromEntries(this.#table);
+    toObject() { return Object.fromEntries(this.#table); }
+    static serialize(b) {
+        if (b.some(c => !VALID_CELLS.includes(c))) throw new Error('Invalid board');
+        return b.join('');
     }
-
-    static serialize(board) {
-        if (board.some(c => !VALID_CELLS.includes(c))) {
-            throw new Error(`Invalid board: ${board}`);
-        }
-        return board.join('');
-    }
-
-    get(board) {
-        const key = ValueTable.serialize(board);
-        if (!this.#table.has(key)) {
-            throw new Error(`Key ${key} does not exist`);
-        }
+    get(b) {
+        const key = ValueTable.serialize(b);
+        if (!this.#table.has(key)) throw new Error(`Missing key ${key}`);
         return this.#table.get(key);
     }
-
-    set(board, val) {
-        const key = ValueTable.serialize(board);
-        if (!this.#table.has(key)) {
-            throw new Error(`Key ${key} does not exist`);
-        }
-        this.#table.set(key, val);
+    set(b, v) {
+        const key = ValueTable.serialize(b);
+        if (!this.#table.has(key)) throw new Error(`Missing key ${key}`);
+        this.#table.set(key, v);
     }
 }
 
-// — Tabular Epsilon‑Greedy Agent —
+// — ε‑Greedy Agent (unchanged) —
 class TabularEpsilonGreedyAgent {
     #table;
-
     constructor(initial) {
         this.#table = new ValueTable(initial);
     }
-
     playMove(board) {
         const values = new Map();
-        for (let i = 0; i < board.length; i++) {
+        for (let i = 0; i < 9; i++) {
             if (board[i] === EMPTY) {
-                const b2 = [...board];
-                b2[i] = PLAYER_ONE;
+                const b2 = [...board]; b2[i] = PLAYER_ONE;
                 values.set(i, this.#table.get(b2));
             }
         }
-
         const eps = 0.1, lr = 0.5;
         const entries = [...values.entries()];
         const [gIdx, gVal] = entries.reduce(
             ([bestI, bestV], [i, v]) => v > bestV ? [i, v] : [bestI, bestV],
             entries[0]
         );
-
-        if (values.size > 1 && Math.random() < eps) {
-            const nonGreedy = entries.filter(([i]) => i !== gIdx);
-            return nonGreedy[Math.floor(Math.random() * nonGreedy.length)][0];
+        if (entries.length > 1 && Math.random() < eps) {
+            const other = entries.filter(([i]) => i !== gIdx);
+            return other[Math.floor(Math.random() * other.length)][0];
         }
-
-        const curVal = this.#table.get(board);
-        this.#table.set(board, curVal + lr * (gVal - curVal));
+        const cur = this.#table.get(board);
+        this.#table.set(board, cur + lr * (gVal - cur));
         return gIdx;
     }
-
-    exportTable() {
-        return this.#table.toObject();
-    }
+    exportTable() { return this.#table.toObject(); }
 }
 
-// — Naive Agent for PLAYER_TWO —
+// — Naive Agent (unchanged) —
 class NaiveAgent {
     playMove(board) {
         for (let i = 0; i < 9; i++) {
@@ -128,33 +101,34 @@ class NaiveAgent {
                 return i;
             }
         }
-        const avail = board.map((c, i) => c === EMPTY ? i : null)
-            .filter(i => i !== null);
+        const avail = board.map((c, i) => c === EMPTY ? i : null).filter(i => i !== null);
         return avail[Math.floor(Math.random() * avail.length)];
     }
 }
 
 // — Main TicTacToe Class —
 class TicTacToe {
-    #board;
-    #isGameOver;
-    #cells = [];
-    #players = [];
-    #current = 0;
+    #board; #over; #cells = []; #players = []; #current = 0;
 
     constructor() {
+        // DOM refs
         this.boardEl = document.getElementById('board');
         this.msgEl = document.getElementById('message');
-        this.resetBtn = document.getElementById('reset');
-        this.p2Select = document.getElementById('player2Select');
+        this.actionBtn = document.getElementById('actionBtn');
         this.exportBtn = document.getElementById('exportEpsilon');
         this.importBtn = document.getElementById('importEpsilon');
         this.importFile = document.getElementById('importEpsilonFile');
         this.statusEl = document.getElementById('statusEpsilon');
+        this.modeSelect = document.getElementById('modeSelect');
+        this.p2Select = document.getElementById('player2Select');
+        this.p2Form = document.getElementById('player2-selector');
 
         this.epsilonData = null;
+        this.runningSim = false;
+        this._resolveEnd = null;
 
-        this.resetBtn.addEventListener('click', () => this.init());
+        // Wire controls
+        this.actionBtn.addEventListener('click', e => { e.preventDefault(); this._onAction(); });
         this.exportBtn.addEventListener('click', e => { e.preventDefault(); this._export(); });
         this.importBtn.addEventListener('click', e => { e.preventDefault(); this.importFile.click(); });
         this.importFile.addEventListener('change', e => {
@@ -162,39 +136,89 @@ class TicTacToe {
             if (f) this._import(f);
             e.target.value = '';
         });
+        this.modeSelect.addEventListener('change', () => this._onModeChange());
 
+        // Initial setup
+        this._onModeChange();
         this.init();
     }
 
+    _onModeChange() {
+        const mode = this.modeSelect.value;
+        if (mode === 'sim') {
+            this.actionBtn.textContent = 'Start Simulation';
+            this.exportBtn.disabled = true;
+            this.importBtn.disabled = true;
+            this.p2Select.disabled = true;
+            this.p2Form.style.display = 'none';
+        } else {
+            this.actionBtn.textContent = 'Reset Game';
+            this.exportBtn.disabled = false;
+            this.importBtn.disabled = false;
+            this.p2Select.disabled = false;
+            this.p2Form.style.display = '';
+            // if switching back from sim, stop it
+            this.runningSim = false;
+            if (this._resolveEnd) {
+                this._resolveEnd();
+                this._resolveEnd = null;
+            }
+        }
+    }
+
+    async _onAction() {
+        if (this.modeSelect.value === 'play') {
+            this.init();
+        } else {
+            // simulation
+            if (!this.runningSim) {
+                this.runningSim = true;
+                this.actionBtn.textContent = 'Stop Simulation';
+                await this._runSimulation();
+            } else {
+                this.runningSim = false;
+            }
+        }
+    }
+
+    async _runSimulation() {
+        while (this.runningSim) {
+            this.init();
+            await new Promise(res => { this._resolveEnd = res; });
+        }
+        this.actionBtn.textContent = 'Start Simulation';
+    }
+
     init() {
+        // Build players
         const p1 = {
-            type: 'AGENT',
-            logical: PLAYER_ONE,
-            display: PLAYER_ONE,
+            type: 'AGENT', logical: PLAYER_ONE, display: PLAYER_ONE,
             agent: new TabularEpsilonGreedyAgent(this.epsilonData)
         };
-        const p2 = this.p2Select.value === 'HUMAN'
+        const p2 = (this.p2Select.value === 'HUMAN')
             ? { type: 'HUMAN', logical: PLAYER_TWO, display: PLAYER_TWO }
             : { type: 'AGENT', logical: PLAYER_TWO, display: PLAYER_TWO, agent: new NaiveAgent() };
 
         this.#players = [p1, p2];
         this.#board = Array(9).fill(EMPTY);
-        this.#isGameOver = false;
+        this.#over = false;
         this.#current = Math.random() < 0.5 ? 0 : 1;
 
+        // Draw board
         this.boardEl.replaceChildren();
         this.#cells = this.#board.map((_, i) => {
             const btn = document.createElement('button');
             btn.className = 'cell';
             btn.dataset.index = i;
             btn.disabled = false;
-            btn.addEventListener('click', e => this._onClick(e));
+            btn.addEventListener('click', e => this._onCellClick(e));
             this.boardEl.appendChild(btn);
             return btn;
         });
 
         this.statusEl.textContent = '';
 
+        // First move
         const cur = this.#players[this.#current];
         if (cur.type === 'AGENT') {
             this.msgEl.textContent = 'Agent starts';
@@ -204,8 +228,8 @@ class TicTacToe {
         }
     }
 
-    _onClick(e) {
-        if (this.#isGameOver) return;
+    _onCellClick(e) {
+        if (this.#over) return;
         const i = +e.currentTarget.dataset.index;
         const p = this.#players[this.#current];
         if (p.type !== 'HUMAN' || this.#board[i] !== EMPTY) return;
@@ -214,7 +238,7 @@ class TicTacToe {
     }
 
     _agentMove() {
-        if (this.#isGameOver) return;
+        if (this.#over) return;
         const p = this.#players[this.#current];
         const i = p.agent.playMove([...this.#board]);
         this._commit(i, p);
@@ -230,15 +254,17 @@ class TicTacToe {
 
     _checkEnd(p) {
         if (TicTacToe.isWin(this.#board, p.logical)) {
-            this.#isGameOver = true;
+            this.#over = true;
             const line = WIN_LINES.find(l => l.every(i => this.#board[i] === p.logical));
             if (line) line.forEach(i => this.#cells[i].classList.add('win'));
             this.msgEl.textContent = p.type === 'HUMAN' ? 'You win!' : 'Agent wins!';
+            if (this._resolveEnd) { this._resolveEnd(); this._resolveEnd = null; }
             return true;
         }
         if (TicTacToe.isDraw(this.#board)) {
-            this.#isGameOver = true;
+            this.#over = true;
             this.msgEl.textContent = "It's a draw!";
+            if (this._resolveEnd) { this._resolveEnd(); this._resolveEnd = null; }
             return true;
         }
         return false;
@@ -270,38 +296,36 @@ class TicTacToe {
     }
 
     _import(file) {
-        const reader = new FileReader();
-        reader.onload = () => {
+        const r = new FileReader();
+        r.onload = () => {
             try {
-                this.epsilonData = JSON.parse(reader.result);
+                this.epsilonData = JSON.parse(r.result);
                 this.#players[0].agent = new TabularEpsilonGreedyAgent(this.epsilonData);
                 this.statusEl.textContent = '✔ Table imported';
             } catch {
                 this.statusEl.textContent = '✖ Invalid JSON';
             }
         };
-        reader.onerror = () => {
-            this.statusEl.textContent = '✖ Read error';
-        };
-        reader.readAsText(file);
+        r.onerror = () => { this.statusEl.textContent = '✖ Read error'; };
+        r.readAsText(file);
     }
 
-    static isWin(board, sym) {
-        return WIN_LINES.some(line => line.every(i => board[i] === sym));
+    static isWin(b, sym) {
+        return WIN_LINES.some(line => line.every(i => b[i] === sym));
     }
 
-    static isDraw(board) {
-        return board.every(c => c !== EMPTY)
-            && !TicTacToe.isWin(board, PLAYER_ONE)
-            && !TicTacToe.isWin(board, PLAYER_TWO);
+    static isDraw(b) {
+        return b.every(c => c !== EMPTY)
+            && !TicTacToe.isWin(b, PLAYER_ONE)
+            && !TicTacToe.isWin(b, PLAYER_TWO);
     }
 
-    static evaluateMove(board, idx, sym) {
-        if (board[idx] !== EMPTY) throw new Error('Cell occupied');
-        const b2 = [...board]; b2[idx] = sym;
+    static evaluateMove(b, idx, sym) {
+        if (b[idx] !== EMPTY) throw new Error('Occupied');
+        const b2 = [...b]; b2[idx] = sym;
         if (TicTacToe.isWin(b2, sym)) return MoveOutcome.WIN;
         if (TicTacToe.isDraw(b2)) return MoveOutcome.DRAW;
-        const opp = sym === PLAYER_ONE ? PLAYER_TWO : PLAYER_ONE;
+        const opp = (sym === PLAYER_ONE ? PLAYER_TWO : PLAYER_ONE);
         for (let i = 0; i < 9; i++) {
             if (b2[i] === EMPTY) {
                 const b3 = [...b2]; b3[i] = opp;
@@ -312,5 +336,5 @@ class TicTacToe {
     }
 }
 
-// Start the game
+// Kick it off
 new TicTacToe();
