@@ -129,6 +129,11 @@ class TicTacToe {
         this.modeSelect = document.getElementById('modeSelect');
         this.simLogEl = document.getElementById('simLog');
         this.simLogContainer = document.getElementById('simLogContainer');
+        // TODO: winOrDraw needs to replace win everywhere
+        this.winRateContainer = document.getElementById('winRateContainer');
+        this.winRateEl = document.getElementById('winRate');
+        this.totalGames = 0;
+        this.favorableOutcomes = 0;
 
         this.epsilonData = null;
         this.runningSim = false;
@@ -155,21 +160,24 @@ class TicTacToe {
 
     _onModeChange() {
         if (this.modeSelect.value === 'sim') {
-            // TODO: should be able to re-enable eps/lr inputs when simulation is stopped
-            //       so that user could change training parameters at different intervals
-            this.epsInput.disabled = true;
-            this.lrInput.disabled = true;
-            this.actionBtn.textContent = 'Start Simulation';
-            this.simLogContainer.style.display = 'block';   // show it
+            // reset stats
+            this.totalGames = 0;
+            this.favorableOutcomes = 0;
+            this.winRateEl.textContent = '0.0%';
+
+            // show sim UI
+            this.simLogContainer.style.display = 'block';
+            this.winRateContainer.style.display = 'block';
+            this.exportBtn.disabled = true;
+            this.importBtn.disabled = true;
             this.simLogEl.innerHTML = '';
             this.simCount = 1;
         } else {
-            this.epsInput.disabled = false;
-            this.lrInput.disabled = false;
-            this.actionBtn.textContent = 'Reset Game';
+            // hide sim UI
+            this.simLogContainer.style.display = 'none';
+            this.winRateContainer.style.display = 'none';
             this.exportBtn.disabled = false;
             this.importBtn.disabled = false;
-            this.simLogContainer.style.display = 'none';    // hide it
             this.runningSim = false;
             if (this._resolveEnd) {
                 this._resolveEnd();
@@ -267,27 +275,53 @@ class TicTacToe {
         btn.disabled = true;
     }
 
+    /** Recompute and display the percent of games that were win OR draw */
+    updateWinRate() {
+        const pct = this.totalGames > 0
+            ? (this.favorableOutcomes / this.totalGames) * 100
+            : 0;
+        this.winRateEl.textContent = `${pct.toFixed(1)}%`;
+    }
+
     _checkEnd(p) {
         let resultText;
+
+        // did someone win?
         if (TicTacToe.isWin(this.#board, p.logical)) {
             this.#over = true;
+            resultText = (p.logical === PLAYER_ONE ? 'Epsilon wins' : 'Naive wins');
+            // highlight winning line…
             const line = WIN_LINES.find(l => l.every(i => this.#board[i] === p.logical));
             line.forEach(i => this.#cells[i].classList.add('win'));
-            resultText = (p.logical === PLAYER_ONE ? 'Epsilon wins' : 'Naive wins');
+
+            // or a draw?
         } else if (TicTacToe.isDraw(this.#board)) {
             this.#over = true;
             resultText = 'Draw';
         }
+
         if (this.#over) {
             this.msgEl.textContent = resultText;
-            if (this._resolveEnd) {
-                // log if sim mode
-                if (this.modeSelect.value === 'sim') {
-                    const li = document.createElement('li');
-                    li.textContent = `Game ${this.simCount++}: ${resultText}`;
-                    this.simLogEl.appendChild(li);
-                    this.simLogEl.scrollTop = this.simLogEl.scrollHeight;
+
+            // in sim‑mode, update counters + UI
+            if (this.modeSelect.value === 'sim') {
+                this.totalGames++;
+
+                // count as “successful” if Epsilon won OR it was a draw
+                if (p.logical === PLAYER_ONE || resultText === 'Draw') {
+                    this.favorableOutcomes++;
                 }
+
+                this.updateWinRate();
+
+                // existing log entry
+                const li = document.createElement('li');
+                li.textContent = `Game ${this.simCount++}: ${resultText}`;
+                this.simLogEl.appendChild(li);
+                this.simLogEl.scrollTop = this.simLogEl.scrollHeight;
+            }
+
+            if (this._resolveEnd) {
                 this._resolveEnd();
                 this._resolveEnd = null;
             }
@@ -295,6 +329,7 @@ class TicTacToe {
         }
         return false;
     }
+
 
     _next() {
         const nxt = this.#players[1 - this.#cur];
