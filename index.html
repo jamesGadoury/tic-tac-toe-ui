@@ -23,27 +23,29 @@
             </select>
         </label>
 
-        <!-- Game board -->
-        <div id="board" role="grid" aria-label="Tic Tac Toe board"></div>
-        <div id="message" role="status" aria-live="polite"></div>
+        <!-- Game area: board and (optional) log -->
+        <div id="gameArea">
+            <!-- Board -->
+            <div id="boardWrapper">
+                <div id="board" role="grid" aria-label="Tic Tac Toe board"></div>
+                <div id="message" role="status" aria-live="polite"></div>
+            </div>
+
+            <!-- Simulation log -->
+            <div id="simLogContainer">
+                <strong>Simulation Log:</strong>
+                <ul id="simLog"></ul>
+            </div>
+        </div>
 
         <!-- Controls -->
-        <button id="actionBtn">Reset Game</button>
-        <button id="exportEpsilon">Export Agent Table</button>
-        <button id="importEpsilon">Import Agent Table</button>
-        <input type="file" id="importEpsilonFile" accept=".json" style="display:none" />
-        <span id="statusEpsilon"></span>
-
-        <!-- Player 2 selector (only in play mode) -->
-        <form id="player2-selector">
-            <label>
-                Player 2:
-                <select id="player2Select">
-                    <option value="HUMAN">Human</option>
-                    <option value="NAIVE">Naive Agent</option>
-                </select>
-            </label>
-        </form>
+        <div id="controls">
+            <button id="actionBtn">Reset Game</button>
+            <button id="exportEpsilon">Export Agent Table</button>
+            <button id="importEpsilon">Import Agent Table</button>
+            <input type="file" id="importEpsilonFile" accept=".json" style="display:none" />
+            <span id="statusEpsilon"></span>
+        </div>
     </main>
 
     <script src="script.js"></script>

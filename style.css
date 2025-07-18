@@ -1,72 +1,71 @@
 :root {
     --cell-size: 100px;
     --gap: 5px;
-    --color-gunmetal: #012A36;
-    --color-space-cadet: #29274C;
-    --color-royal-purple: #7E52A0;
-    --color-lilac: #D295BF;
-    --color-fairy-tale: #E6BCCD;
+    --bg: #012A36;
+    --fg: #E6BCCD;
+    --accent: #7E52A0;
+    --cell-bg: #D295BF;
+    --cell-border: #E6BCCD;
 }
 
 * {
     box-sizing: border-box;
-    font-weight: bold;
     margin: 0;
     padding: 0;
+    font-weight: bold;
 }
 
 body {
     font-family: system-ui, sans-serif;
-    background: var(--color-gunmetal);
-    color: var(--color-fairy-tale);
+    background: var(--bg);
+    color: var(--fg);
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 100vh;
+    justify-content: center;
     padding: 1rem;
 }
 
 main {
+    width: 100%;
+    max-width: 800px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-    width: 100%;
-    max-width: 360px;
+    gap: 1rem;
     text-align: center;
 }
 
-#player-selectors {
+#gameArea {
     display: flex;
-    gap: 0.5rem;
+    gap: 1rem;
+    align-items: flex-start;
     justify-content: center;
-    flex-wrap: wrap;
 }
 
-#player-selectors select {
-    padding: 0.25rem 0.5rem;
-    font-size: 1rem;
+/* Board wrapper to center board and message */
+#boardWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
 }
 
+/* The board grid */
 #board {
     display: grid;
     grid-template-columns: repeat(3, var(--cell-size));
     gap: var(--gap);
-    justify-content: center;
 }
 
 .cell {
     width: var(--cell-size);
     height: var(--cell-size);
+    background: var(--cell-bg);
+    border: 2px solid var(--cell-border);
     font-size: 2rem;
-    background: var(--color-lilac);
-    border: 2px solid var(--color-fairy-tale);
+    color: var(--bg);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: var(--color-space-cadet);
 }
 
 .cell:disabled {
@@ -74,39 +73,81 @@ main {
 }
 
 .cell.win {
-    background: var(--color-space-cadet);
+    background: var(--bg);
     color: white;
 }
 
 #message {
-    font-size: 1.5rem;
-    padding: 0.5rem 1rem;
+    font-size: 1.25rem;
+    min-height: 1.5em;
 }
 
-main button {
+/* Controls row */
+#controls {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+button {
     padding: 0.5rem 1rem;
     font-size: 1rem;
-    background: var(--color-royal-purple);
-    color: var(--color-fairy-tale);
+    background: var(--accent);
+    color: var(--fg);
     border: none;
     border-radius: 4px;
     cursor: pointer;
 }
 
-form#agent-management {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    justify-content: center;
-}
-
-#agentStatus {
+#statusEpsilon {
     font-size: 0.9rem;
-    color: var(--color-fairy-tale);
 }
 
+/* Simulation log */
+#simLogContainer {
+    display: none;
+    /* shown only in sim mode */
+    width: 200px;
+    max-height: 300px;
+    overflow-y: auto;
+    text-align: left;
+    background: #111;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+#simLogContainer strong {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+#simLog {
+    list-style: none;
+    padding-left: 0;
+    font-size: 0.9rem;
+}
+
+#simLog li {
+    margin-bottom: 0.25rem;
+}
+
+/* Mobile: stack vertically */
+@media (max-width: 600px) {
+    #gameArea {
+        flex-direction: column;
+    }
+
+    #simLogContainer {
+        width: 100%;
+        max-height: 200px;
+    }
+}
+
+/* Shrink cells on very narrow screens */
 @media (max-width: 360px) {
     :root {
-        --cell-size: calc((100vw - 2rem - 2 * var(--gap)) / 3);
+        --cell-size: calc((100vw - 2rem - 2*var(--gap)) / 3);
     }
 }
