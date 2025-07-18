@@ -1,4 +1,4 @@
-import { sum } from "../src/script.js"
+import { sum } from "../src/lib.js"
 
 QUnit.test("add() adds numbers correctly", function(assert) {
     assert.equal(sum(2, 3), 5, "add(2, 3) should be 5");
