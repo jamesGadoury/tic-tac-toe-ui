@@ -88,7 +88,7 @@ main {
     padding: 0.5rem 1rem;
 }
 
-#reset {
+main button {
     padding: 0.5rem 1rem;
     font-size: 1rem;
     background: var(--color-royal-purple);

@@ -1,64 +1,71 @@
-// Symbols and valid cell states
-const HUMAN = Object.freeze('😁');
-const AGENT = Object.freeze('🤖');
-const EMPTY = Object.freeze('.');
-const VALID_CELLS = Object.freeze([EMPTY, HUMAN, AGENT]);
+// ————————————————
+//  Persistence helpers
+// ————————————————
+const STORAGE_KEY = 'TicTacToe:TabularEpsilonGreedy:v1';
 
-// All win line combinations
-const WIN_LINES = Object.freeze([
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
-    [0, 4, 8], [2, 4, 6],            // diagonals
-]);
-
-// Outcome enumeration
-const MoveOutcome = Object.freeze({
-    WIN: 'win',
-    DRAW: 'draw',
-    LOSS: 'loss',
-    NEUTRAL: 'neutral',
-});
-
-// A naive agent: immediate win or random
-class NaiveAgent {
-    playMove(board) {
-        // Check for immediate win
-        for (let i = 0; i < 9; i++) {
-            if (board[i] === EMPTY && TicTacToe.evaluateMove(board, i, AGENT) === MoveOutcome.WIN) {
-                return i;
-            }
-        }
-        // Otherwise pick randomly
-        const avail = board
-            .map((c, i) => (c === EMPTY ? i : null))
-            .filter(i => i !== null);
-        if (avail.length === 0) throw new Error("No available moves");
-        return avail[Math.floor(Math.random() * avail.length)];
-    }
+// write a cookie (fallback if localStorage is full)
+function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 }
 
-// Table of values for all possible board states (3^9)
+// read a cookie
+function getCookie(name) {
+    return document.cookie
+        .split('; ')
+        .reduce((acc, pair) => {
+            const [k, v] = pair.split('=');
+            return k === name ? decodeURIComponent(v) : acc;
+        }, '');
+}
+
+// ————————————————
+//  Constants & Utilities
+// ————————————————
+const HUMAN = '😁';
+const AGENT = '🤖';
+const EMPTY = '.';
+const VALID_CELLS = [EMPTY, HUMAN, AGENT];
+
+const WIN_LINES = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6],
+];
+
+const MoveOutcome = {
+    WIN: 'win', DRAW: 'draw', LOSS: 'loss', NEUTRAL: 'neutral'
+};
+
+// ————————————————
+//  ValueTable can be (de)serialized
+// ————————————————
 class ValueTable {
     #table = new Map();
 
-    constructor() {
-        const total = 3 ** 9;
-        const nums = [0, 0, 0, 0, 0, 0, 0, 0, -1];
-        for (let k = 0; k < total; k++) {
-            // Increment in base-3
-            let i = nums.findLastIndex(n => n <= 2);
-            nums[i]++;
-            while (nums[i] === 3) {
-                nums[i] = 0;
-                i--;
+    // If initialData is an object-of-entries, use it; else build fresh
+    constructor(initialData) {
+        if (initialData) {
+            this.#table = new Map(Object.entries(initialData));
+        } else {
+            // build all 3^9 states
+            const total = 3 ** 9;
+            const nums = [0, 0, 0, 0, 0, 0, 0, 0, -1];
+            for (let k = 0; k < total; k++) {
+                let i = nums.findLastIndex(n => n <= 2);
                 nums[i]++;
+                while (nums[i] === 3) { nums[i] = 0; i--; nums[i]++; }
+                const board = nums.map(n => VALID_CELLS[n]);
+                const v = TicTacToe.isWin(board, HUMAN) ? 0.0
+                    : (TicTacToe.isWin(board, AGENT) || TicTacToe.isDraw(board)) ? 1.0
+                        : 0.5;
+                this.#table.set(board.join(''), v);
             }
-            const board = nums.map(n => VALID_CELLS[n]);
-            const val = TicTacToe.isWin(board, HUMAN) ? 0.0
-                : (TicTacToe.isWin(board, AGENT) || TicTacToe.isDraw(board)) ? 1.0
-                    : 0.5;
-            this.#table.set(board.join(''), val);
         }
+    }
+
+    toObject() {
+        return Object.fromEntries(this.#table);
     }
 
     static serialize(board) {
@@ -71,7 +78,7 @@ class ValueTable {
     get(board) {
         const key = ValueTable.serialize(board);
         if (!this.#table.has(key)) {
-            throw new Error(`Key ${key} not in table`);
+            throw new Error(`Missing key in table: ${key}`);
         }
         return this.#table.get(key);
     }
@@ -79,214 +86,239 @@ class ValueTable {
     set(board, v) {
         const key = ValueTable.serialize(board);
         if (!this.#table.has(key)) {
-            throw new Error(`Key ${key} not in table`);
+            throw new Error(`Missing key in table: ${key}`);
         }
         this.#table.set(key, v);
     }
 }
 
-// Epsilon-greedy agent that updates its table online
+// ————————————————
+//  Epsilon‑Greedy Agent w/ save/load
+// ————————————————
 class TabularEpsilonGreedyAgent {
-    #valueTable = new ValueTable();
+    #valueTable;
+
+    // private ctor — use load() or new without args
+    constructor(initialData) {
+        this.#valueTable = new ValueTable(initialData);
+    }
+
+    // attempt to load from localStorage (or cookie); else fresh
+    static load() {
+        const raw = localStorage.getItem(STORAGE_KEY) || getCookie(STORAGE_KEY);
+        if (raw) {
+            try {
+                const data = JSON.parse(raw);
+                return new TabularEpsilonGreedyAgent(data);
+            } catch (e) {
+                console.warn('Could not parse saved table, starting fresh');
+            }
+        }
+        return new TabularEpsilonGreedyAgent();
+    }
+
+    // save to localStorage; if that fails, to a cookie (365d expiry)
+    save() {
+        const obj = this.#valueTable.toObject();
+        const str = JSON.stringify(obj);
+        try {
+            localStorage.setItem(STORAGE_KEY, str);
+        } catch {
+            setCookie(STORAGE_KEY, str, 365);
+        }
+    }
 
     playMove(board) {
         const values = new Map();
         for (let i = 0; i < board.length; i++) {
             if (board[i] === EMPTY) {
-                const b2 = [...board];
-                b2[i] = AGENT;
+                const b2 = [...board]; b2[i] = AGENT;
                 values.set(i, this.#valueTable.get(b2));
             }
         }
-
         const eps = 0.1, lr = 0.5;
         const entries = [...values.entries()];
-        // Find greedy action
-        const [gIdx, gVal] = entries.reduce(
-            ([bestI, bestV], [i, v]) => v > bestV ? [i, v] : [bestI, bestV],
+        // greedy
+        const [gI, gV] = entries.reduce(
+            ([bi, bv], [i, v]) => v > bv ? [i, v] : [bi, bv],
             entries[0]
         );
-
-        // Explore?
+        // explore?
         if (values.size > 1 && Math.random() < eps) {
-            const nonG = entries.filter(([i]) => i !== gIdx);
-            return nonG[Math.floor(Math.random() * nonG.length)][0];
+            const non = entries.filter(([i]) => i !== gI);
+            return non[Math.floor(Math.random() * non.length)][0];
         }
-
-        // Update value of current state
+        // update
         const cur = this.#valueTable.get(board);
-        this.#valueTable.set(board, cur + lr * (gVal - cur));
-
-        return gIdx;
+        this.#valueTable.set(board, cur + lr * (gV - cur));
+        return gI;
     }
 }
 
-// Main game class
+// ————————————————
+//  NaiveAgent unchanged
+// ————————————————
+class NaiveAgent {
+    playMove(board) {
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === EMPTY
+                && TicTacToe.evaluateMove(board, i, AGENT) === MoveOutcome.WIN) {
+                return i;
+            }
+        }
+        const avail = board.map((c, i) => c === EMPTY ? i : null).filter(i => i !== null);
+        if (!avail.length) throw new Error('No moves');
+        return avail[Math.floor(Math.random() * avail.length)];
+    }
+}
+
+// ————————————————
+//  Main TicTacToe class
+// ————————————————
 class TicTacToe {
-    #boardState;
-    #isGameOver;
-    #cells = [];
-    #players = [];
-    #currentPlayerIndex = 0;
+    #boardState; #isGameOver; #cells = []; #players = []; #cur = 0;
 
     constructor() {
         this.boardElement = document.getElementById('board');
-        this.messageElement = document.getElementById('message');
+        this.msgElement = document.getElementById('message');
         this.resetBtn = document.getElementById('reset');
-        this.playerXSelect = document.getElementById('playerX');
-        this.playerOSelect = document.getElementById('playerO');
+        this.saveBtn = document.getElementById('saveTable');
+        this.loadBtn = document.getElementById('loadTable');
+        this.xSelect = document.getElementById('playerX');
+        this.oSelect = document.getElementById('playerO');
 
-        // Ensure Player O can only be an agent
-        for (let i = this.playerOSelect.options.length - 1; i >= 0; i--) {
-            if (this.playerOSelect.options[i].value === 'HUMAN') {
-                this.playerOSelect.remove(i);
+        // remove HUMAN option from O
+        for (let i = this.oSelect.options.length - 1; i >= 0; i--) {
+            if (this.oSelect.options[i].value === 'HUMAN') {
+                this.oSelect.remove(i);
             }
         }
-        this.playerOSelect.value = 'NAIVE';
+        this.oSelect.value = 'NAIVE';
 
+        // wire
         this.resetBtn.addEventListener('click', () => this.init());
+        this.saveBtn.addEventListener('click', () => this._saveAgent());
+        this.loadBtn.addEventListener('click', () => this._loadAgent());
+        window.addEventListener('beforeunload', () => this._saveAgent());
 
-        // Start the first game immediately
+        // start
         this.init();
     }
 
     init() {
-        // Build players based on selectors
-        const makePlayer = sel => {
-            if (sel === 'HUMAN') {
-                return { type: 'HUMAN', symbol: HUMAN };
-            } else if (sel === 'NAIVE') {
-                return { type: 'AGENT', symbol: AGENT, agent: new NaiveAgent() };
-            } else {
-                return { type: 'AGENT', symbol: AGENT, agent: new TabularEpsilonGreedyAgent() };
-            }
+        // build players
+        const make = v => {
+            if (v === 'HUMAN') return { type: 'HUMAN', symbol: HUMAN };
+            if (v === 'NAIVE') return { type: 'AGENT', symbol: AGENT, agent: new NaiveAgent() };
+            // EPS_GREEDY
+            return { type: 'AGENT', symbol: AGENT, agent: TabularEpsilonGreedyAgent.load() };
         };
+        this.#players = [make(this.xSelect.value), make(this.oSelect.value)];
 
-        this.#players = [
-            makePlayer(this.playerXSelect.value),
-            makePlayer(this.playerOSelect.value),
-        ];
-
-        // Reset game state
+        // reset board
         this.#boardState = Array(9).fill(EMPTY);
         this.#isGameOver = false;
-        this.#currentPlayerIndex = Math.random() < 0.5 ? 0 : 1;
+        this.#cur = Math.random() < 0.5 ? 0 : 1;
 
-        // Render board
+        // render buttons
         this.boardElement.replaceChildren();
-        this.#cells = this.#boardState.map((_, idx) => {
-            const btn = document.createElement('button');
-            btn.className = 'cell';
-            btn.dataset.index = idx;
-            btn.disabled = false;
-            btn.setAttribute('aria-disabled', 'false');
-            btn.addEventListener('click', e => this.onCellClick(e));
-            this.boardElement.appendChild(btn);
-            return btn;
+        this.#cells = this.#boardState.map((_, i) => {
+            const b = document.createElement('button');
+            b.className = 'cell'; b.dataset.index = i;
+            b.disabled = false; b.addEventListener('click', e => this._onClick(e));
+            this.boardElement.appendChild(b);
+            return b;
         });
 
-        // Announce and possibly let agent move first
-        const current = this.#players[this.#currentPlayerIndex];
-        if (current.type === 'AGENT') {
-            this.messageElement.textContent = `Agent (${this._agentName(current)}) starts`;
-            setTimeout(() => this._makeAgentMove(), 10);
+        // first move
+        const p = this.#players[this.#cur];
+        if (p.type === 'AGENT') {
+            this.msgElement.textContent = `Agent starts`;
+            setTimeout(() => this._agentMove(), 10);
         } else {
-            this.messageElement.textContent = 'Your turn';
+            this.msgElement.textContent = `Your turn`;
         }
     }
 
-    onCellClick(e) {
+    // save current ε‑greedy agent (if active) to storage
+    _saveAgent() {
+        const p = this.#players.find(pl => pl.agent instanceof TabularEpsilonGreedyAgent);
+        if (p) p.agent.save();
+    }
+    // load then re-init so new agent instance with loaded table is used
+    _loadAgent() {
+        this.init();
+    }
+
+    _onClick(e) {
         if (this.#isGameOver) return;
-        const idx = Number(e.currentTarget.dataset.index);
-        const current = this.#players[this.#currentPlayerIndex];
-        if (current.type !== 'HUMAN') return;
-        if (this.#boardState[idx] !== EMPTY) return;
-
-        this._commitMove(idx, current);
-        if (this._checkEnd(current)) return;
-        this._nextTurn();
+        const i = +e.target.dataset.index;
+        const p = this.#players[this.#cur];
+        if (p.type !== 'HUMAN' || this.#boardState[i] !== EMPTY) return;
+        this._commit(i, p);
+        if (!this._checkEnd(p)) this._next();
     }
 
-    _makeAgentMove() {
+    _agentMove() {
         if (this.#isGameOver) return;
-        const current = this.#players[this.#currentPlayerIndex];
-        const idx = current.agent.playMove([...this.#boardState]);
-        this._commitMove(idx, current);
-        if (this._checkEnd(current)) return;
-        this._nextTurn();
+        const p = this.#players[this.#cur];
+        const i = p.agent.playMove([...this.#boardState]);
+        this._commit(i, p);
+        if (!this._checkEnd(p)) this._next();
     }
 
-    _commitMove(idx, player) {
-        this.#boardState[idx] = player.symbol;
-        const btn = this.#cells[idx];
-        btn.textContent = player.symbol;
-        btn.disabled = true;
-        btn.setAttribute('aria-disabled', 'true');
+    _commit(i, p) {
+        this.#boardState[i] = p.symbol;
+        const b = this.#cells[i];
+        b.textContent = p.symbol; b.disabled = true;
     }
 
-    _checkEnd(player) {
-        if (TicTacToe.isWin(this.#boardState, player.symbol)) {
+    _checkEnd(p) {
+        if (TicTacToe.isWin(this.#boardState, p.symbol)) {
             this.#isGameOver = true;
-            // Highlight the winning line
-            const winLine = WIN_LINES.find(line =>
-                line.every(i => this.#boardState[i] === player.symbol)
-            );
-            if (winLine) {
-                winLine.forEach(i => this.#cells[i].classList.add('win'));
-            }
-            this.messageElement.textContent =
-                player.type === 'HUMAN'
-                    ? 'You win!'
-                    : `Agent (${this._agentName(player)}) wins!`;
+            // highlight
+            WIN_LINES.find(l => l.every(i => this.#boardState[i] === p.symbol))
+                .forEach(i => this.#cells[i].classList.add('win'));
+            this.msgElement.textContent =
+                p.type === 'HUMAN' ? 'You win!' : 'Agent wins!';
             return true;
         }
         if (TicTacToe.isDraw(this.#boardState)) {
             this.#isGameOver = true;
-            this.messageElement.textContent = "It's a draw!";
+            this.msgElement.textContent = "It's a draw!";
             return true;
         }
         return false;
     }
 
-    _nextTurn() {
-        this.#currentPlayerIndex = 1 - this.#currentPlayerIndex;
-        const next = this.#players[this.#currentPlayerIndex];
-        if (next.type === 'AGENT') {
-            this.messageElement.textContent = `Agent (${this._agentName(next)}) thinking…`;
-            setTimeout(() => this._makeAgentMove(), 300);
+    _next() {
+        this.#cur = 1 - this.#cur;
+        const p = this.#players[this.#cur];
+        if (p.type === 'AGENT') {
+            this.msgElement.textContent = 'Agent thinking…';
+            setTimeout(() => this._agentMove(), 300);
         } else {
-            this.messageElement.textContent = 'Your turn';
+            this.msgElement.textContent = 'Your turn';
         }
     }
 
-    _agentName(player) {
-        return player.agent instanceof NaiveAgent ? 'Naive' : 'Epsilon‑Greedy';
+    static isWin(b, s) {
+        return WIN_LINES.some(l => l.every(i => b[i] === s));
     }
-
-    static isWin(board, player) {
-        return WIN_LINES.some(line => line.every(i => board[i] === player));
+    static isDraw(b) {
+        return b.every(c => c !== EMPTY)
+            && !TicTacToe.isWin(b, HUMAN)
+            && !TicTacToe.isWin(b, AGENT);
     }
-
-    static isDraw(board) {
-        return board.every(c => c !== EMPTY)
-            && !TicTacToe.isWin(board, HUMAN)
-            && !TicTacToe.isWin(board, AGENT);
-    }
-
-    static evaluateMove(board, idx, player) {
-        if (board[idx] !== EMPTY) {
-            throw new Error(`Cell ${idx} is already occupied`);
-        }
-        const b2 = [...board];
-        b2[idx] = player;
-        if (TicTacToe.isWin(b2, player)) return MoveOutcome.WIN;
+    static evaluateMove(b, i, p) {
+        if (b[i] !== EMPTY) throw new Error('occupied');
+        const b2 = [...b]; b2[i] = p;
+        if (TicTacToe.isWin(b2, p)) return MoveOutcome.WIN;
         if (TicTacToe.isDraw(b2)) return MoveOutcome.DRAW;
-
-        const opp = player === HUMAN ? AGENT : HUMAN;
-        for (let i = 0; i < 9; i++) {
-            if (b2[i] === EMPTY) {
-                const b3 = [...b2];
-                b3[i] = opp;
+        const opp = p === HUMAN ? AGENT : HUMAN;
+        for (let j = 0; j < 9; j++) {
+            if (b2[j] === EMPTY) {
+                const b3 = [...b2]; b3[j] = opp;
                 if (TicTacToe.isWin(b3, opp)) return MoveOutcome.LOSS;
             }
         }
@@ -294,5 +326,5 @@ class TicTacToe {
     }
 }
 
-// Start the game
+// kick it off
 new TicTacToe();
