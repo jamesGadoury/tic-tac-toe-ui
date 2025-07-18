@@ -71,3 +71,15 @@ main {
     border-radius: 4px;
     cursor: pointer;
 }
+
+#player-selectors {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+#player-selectors select {
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+}

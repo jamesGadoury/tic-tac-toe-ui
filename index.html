@@ -12,13 +12,33 @@
     <main>
         <h1>Tic Tac Toe</h1>
 
-        <!-- Game board -->
-        <div id="board" aria-label="Tic Tac Toe board"></div>
+        <!-- ▶ Player selection -->
+        <form id="player-selectors">
+            <label>
+                Player X:
+                <select id="playerX">
+                    <option value="HUMAN">Human (😁)</option>
+                    <option value="NAIVE">Naive Agent (🤖)</option>
+                    <option value="EPS_GREEDY">Epsilon‑Greedy Agent (🤖)</option>
+                </select>
+            </label>
+            <label>
+                Player O:
+                <select id="playerO">
+                    <option value="HUMAN">Human (😁)</option>
+                    <option value="NAIVE">Naive Agent (🤖)</option>
+                    <option value="EPS_GREEDY">Epsilon‑Greedy Agent (🤖)</option>
+                </select>
+            </label>
+        </form>
 
-        <!-- Status message (win/draw) -->
+        <!-- Game board -->
+        <div id="board" aria-label="Tic Tac Toe board" role="grid"></div>
+
+        <!-- Status message -->
         <div id="message" role="status" aria-live="polite"></div>
 
-        <!-- Reset button -->
+        <!-- Reset -->
         <button id="reset">Reset Game</button>
     </main>
 
