@@ -9,11 +9,63 @@ const WIN_LINES = Object.freeze([
     [0, 4, 8], [2, 4, 6]            // diagonals
 ]);
 
+/**
+ * Fetch and parse a JSON resource, or return null if missing.
+ * @param {string} url
+ * @returns {Promise<any|null>}
+ */
+async function loadJSONIfExists(url) {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) {
+            // 404, 500, whatever: treat as “not available”
+            console.warn(`Resource ${url} returned ${res.status}`);
+            return null;
+        }
+        return await res.json();
+    }
+    catch (err) {
+        console.error(`Failed to fetch ${url}:`, err);
+        return null;
+    }
+}
+
+class Agent {
+    #valueTable;
+
+    constructor(valueTable) {
+        this.#valueTable = valueTable;
+        console.log("Agent", this.#valueTable[this.serialize([COMPUTER, COMPUTER, COMPUTER, HUMAN, EMPTY, HUMAN, EMPTY, EMPTY, EMPTY])]);
+    }
+
+    serialize(board) {
+        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "");
+    }
+
+    getMove(board) {
+        // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
+        //       this matches the gym_tictactoe env
+        // look for immediate win
+        for (let i = 0; i < 9; i++) {
+            if (board[i] === null && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
+                return i;
+            }
+        }
+        // otherwise select a random empty
+
+        // NOTE: we use flatMap so that we can return empty arrays in the callback
+        //       for non empty cells which will then get dropped by the flatten operation
+        const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
+        return emptyCellsIndices[Math.round(Math.random() * (emptyCellsIndices.length - 1))];
+    }
+}
+
 class TicTacToe {
     // private game state
     #boardState;
     #isGameOver;
     #cells = [];
+    #agent = null;
 
     constructor() {
         this.boardElement = document.getElementById('board');
@@ -28,6 +80,24 @@ class TicTacToe {
         this.#boardState = Array(9).fill(EMPTY);
         this.#isGameOver = false;
         this.currentPlayer = Math.random() < 0.5 ? HUMAN : COMPUTER;
+
+        // try to fetch json for value table, if it doesn't exist we will
+        // fallback on default heuristics for computer
+        const path = "./value_table.json";
+        loadJSONIfExists(path)
+            .then(valueTable => {
+                if (!valueTable) {
+                    console.log(`Could not find json file at path ${path}`);
+                    return;
+                }
+
+                this.#agent = new Agent(valueTable);
+            })
+            .catch(err => {
+                console.error(`Unexpected error loading valueTable at path ${path}: `, err);
+            });
+
+
         this.messageElement.textContent =
             this.currentPlayer === HUMAN ? "You start!" : "Computer starts!";
 
@@ -94,7 +164,7 @@ class TicTacToe {
     }
 
     _makeComputerMove() {
-        const idx = this.getComputerMove([...this.#boardState]);
+        const idx = this.#agent !== null ? this.#agent.getMove([...this.#boardState]) : this.getNaiveComputerMove([...this.#boardState]);
         if (idx < 0) return;
         this.playMove(idx, COMPUTER);
         if (this.checkEnd(COMPUTER)) return;
@@ -102,7 +172,7 @@ class TicTacToe {
         this.messageElement.textContent = "Your turn";
     }
 
-    getComputerMove(board) {
+    getNaiveComputerMove(board) {
         // look for immediate win
         for (let i = 0; i < 9; i++) {
             if (board[i] === null && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
