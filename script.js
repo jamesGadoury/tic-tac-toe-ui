@@ -35,28 +35,30 @@ class Agent {
 
     constructor(valueTable) {
         this.#valueTable = valueTable;
-        console.log("Agent", this.#valueTable[this.serialize([COMPUTER, COMPUTER, COMPUTER, HUMAN, EMPTY, HUMAN, EMPTY, EMPTY, EMPTY])]);
     }
 
     serialize(board) {
+        // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
+        //       this matches the gym_tictactoe env
         return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "");
     }
 
-    getMove(board) {
-        // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
-        //       this matches the gym_tictactoe env
-        // look for immediate win
-        for (let i = 0; i < 9; i++) {
-            if (board[i] === null && TicTacToe.evaluateMove(board, i, COMPUTER) === 'win') {
-                return i;
-            }
-        }
-        // otherwise select a random empty
+    getValue(board) {
+        return this.#valueTable[this.serialize(board)];
+    }
 
+    getMove(board) {
         // NOTE: we use flatMap so that we can return empty arrays in the callback
         //       for non empty cells which will then get dropped by the flatten operation
         const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
-        return emptyCellsIndices[Math.round(Math.random() * (emptyCellsIndices.length - 1))];
+        const estimatedValues = emptyCellsIndices.map(idx => {
+            const possibleBoard = [...board];
+            possibleBoard[idx] = COMPUTER;
+            return this.getValue(possibleBoard);
+        });
+        const maxEstimatedValue = Math.max(...estimatedValues);
+        const bestSlot = estimatedValues.findIndex(v => v === maxEstimatedValue);
+        return emptyCellsIndices[bestSlot];
     }
 }
 
