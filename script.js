@@ -1,3 +1,4 @@
+const EMPTY = '_'
 const HUMAN = '😁';
 const COMPUTER = '🤖';
 
@@ -24,7 +25,7 @@ class TicTacToe {
     }
 
     init() {
-        this.#boardState = Array(9).fill(null);
+        this.#boardState = Array(9).fill(EMPTY);
         this.#isGameOver = false;
         this.currentPlayer = Math.random() < 0.5 ? HUMAN : COMPUTER;
         this.messageElement.textContent =
@@ -55,7 +56,7 @@ class TicTacToe {
 
     onCellClick(e) {
         const idx = Number(e.currentTarget.dataset.index);
-        if (this.#boardState[idx] || this.#isGameOver || this.currentPlayer !== HUMAN)
+        if (this.#boardState[idx] !== EMPTY || this.#isGameOver || this.currentPlayer !== HUMAN)
             return;
 
         this.playMove(idx, HUMAN);
@@ -101,7 +102,6 @@ class TicTacToe {
         this.messageElement.textContent = "Your turn";
     }
 
-    // ——— instance AI hook (you can override this in a subclass) ———
     getComputerMove(board) {
         // look for immediate win
         for (let i = 0; i < 9; i++) {
@@ -109,8 +109,12 @@ class TicTacToe {
                 return i;
             }
         }
-        // otherwise first empty
-        return board.findIndex(c => c === null);
+        // otherwise select a random empty
+
+        // NOTE: we use flatMap so that we can return empty arrays in the callback
+        //       for non empty cells which will then get dropped by the flatten operation
+        const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
+        return emptyCellsIndices[Math.round(Math.random() * (emptyCellsIndices.length - 1))];
     }
 
     static isWin(board, player) {
@@ -118,7 +122,7 @@ class TicTacToe {
     }
 
     static isDraw(board) {
-        return board.every(cell => cell !== null)
+        return board.every(cell => cell !== EMPTY)
             && !TicTacToe.isWin(board, HUMAN)
             && !TicTacToe.isWin(board, COMPUTER);
     }
