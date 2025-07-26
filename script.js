@@ -30,7 +30,8 @@ async function loadJSONIfExists(url) {
     }
 }
 
-class Agent {
+// # TODO: should I just delete this?
+class ValueAgent {
     #valueTable;
 
     constructor(valueTable) {
@@ -62,6 +63,42 @@ class Agent {
     }
 }
 
+// TODO: there's some duplicate logic with above, consolidate
+class QAgent {
+    #qTable;
+
+    constructor(qTable) {
+        this.#qTable = qTable;
+    }
+
+    serialize(board, action) {
+        // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
+        //       this matches the gym_tictactoe env
+        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "") + `${action}`;
+    }
+
+    getValue(board, action) {
+        const key = this.serialize(board, action);
+        if (key in this.#qTable) {
+            return this.#qTable[key];
+        }
+        return 0.0;
+    }
+
+    getMove(board) {
+        // NOTE: we use flatMap so that we can return empty arrays in the callback
+        //       for non empty cells which will then get dropped by the flatten operation
+        const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
+        const estimatedValues = emptyCellsIndices.map(idx => {
+            const possibleBoard = [...board];
+            possibleBoard[idx] = COMPUTER;
+            return this.getValue(possibleBoard, idx);
+        });
+        const maxEstimatedValue = Math.max(...estimatedValues);
+        const bestSlot = estimatedValues.findIndex(v => v === maxEstimatedValue);
+        return emptyCellsIndices[bestSlot];
+    }
+}
 class TicTacToe {
     // private game state
     #boardState;
@@ -85,18 +122,19 @@ class TicTacToe {
 
         // try to fetch json for value table, if it doesn't exist we will
         // fallback on default heuristics for computer
-        const path = "./value_table.json";
+        // const path = "./value_table.json";
+        const path = "./q_table.json";
         loadJSONIfExists(path)
-            .then(valueTable => {
-                if (!valueTable) {
+            .then(table => {
+                if (!table) {
                     console.log(`Could not find json file at path ${path}`);
                     return;
                 }
 
-                this.#agent = new Agent(valueTable);
+                this.#agent = new QAgent(table);
             })
             .catch(err => {
-                console.error(`Unexpected error loading valueTable at path ${path}: `, err);
+                console.error(`Unexpected error loading table at path ${path}: `, err);
             });
 
 
