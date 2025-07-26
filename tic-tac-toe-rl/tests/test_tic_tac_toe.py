@@ -1,13 +1,13 @@
 import logging
 
 import pytest
-from tic_tac_toe_board import TicTacToeBoard
+from tic_tac_toe import Board
 
-Marker = TicTacToeBoard.Marker
+Marker = Board.Marker
 
 
 def test_initial_state_and_properties():
-    board = TicTacToeBoard()
+    board = Board()
     # state must be a 9‐tuple of EMPTY
     assert isinstance(board.state, tuple)
     assert len(board.state) == 9
@@ -19,7 +19,7 @@ def test_initial_state_and_properties():
 
 
 def test_occupied_and_available_cell_indices():
-    board = TicTacToeBoard()
+    board = Board()
     # no cell is occupied at start
     for i in range(9):
         assert board.occupied(i) is False
@@ -37,7 +37,7 @@ def test_occupied_and_available_cell_indices():
 
 
 def test_transition_immutability_and_alternation():
-    board = TicTacToeBoard()
+    board = Board()
     # first move -> index 2
     b1 = board.transition(2)
     assert b1.state[2] is Marker.FIRST_PLAYER
@@ -57,7 +57,7 @@ def test_transition_immutability_and_alternation():
 
 
 def test_transition_illegal_and_edge_indices():
-    board = TicTacToeBoard()
+    board = Board()
     b1 = board.transition(0)
     # cannot move again on 0
     with pytest.raises(RuntimeError) as ei:
@@ -74,7 +74,7 @@ def test_transition_illegal_and_edge_indices():
 
 
 def test_sequence_exhausts_and_errors_on_full():
-    board = TicTacToeBoard()
+    board = Board()
     b = board
     for i in range(9):
         assert i in b.available_cell_indices or -1 in b.available_cell_indices
@@ -88,7 +88,7 @@ def test_sequence_exhausts_and_errors_on_full():
 
 
 def test_state_property_is_tuple_and_readonly():
-    board = TicTacToeBoard()
+    board = Board()
     st = board.state
     assert isinstance(st, tuple)
     with pytest.raises(TypeError):
@@ -97,7 +97,7 @@ def test_state_property_is_tuple_and_readonly():
 
 
 def test_available_cell_indices_order_and_type():
-    board = TicTacToeBoard()
+    board = Board()
     # after moves [3,7,0], the available must be all others in ascending order
     b = board.transition(3).transition(7).transition(0)
     expected = tuple(i for i in range(9) if i not in {3, 7, 0})
@@ -105,11 +105,11 @@ def test_available_cell_indices_order_and_type():
 
 
 def test_transition_returns_new_instance():
-    board = TicTacToeBoard()
+    board = Board()
     b1 = board.transition(4)
-    assert isinstance(b1, TicTacToeBoard)
+    assert isinstance(b1, Board)
     assert b1 is not board
     # further transitions chain
     b2 = b1.transition(5)
-    assert isinstance(b2, TicTacToeBoard)
+    assert isinstance(b2, Board)
     assert b2 is not b1

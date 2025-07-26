@@ -5,7 +5,7 @@ from typing import Self, cast
 logger = logging.getLogger(__name__)
 
 
-class TicTacToeBoard:
+class Board:
     WIN_COMBOS = (
         (0, 1, 2),
         (3, 4, 5),
@@ -35,7 +35,7 @@ class TicTacToeBoard:
     ]
 
     def __init__(self):
-        self._state = cast(TicTacToeBoard.State, (TicTacToeBoard.Marker.EMPTY,) * 9)
+        self._state = cast(Board.State, (Board.Marker.EMPTY,) * 9)
 
     @property
     def state(self) -> State:
@@ -43,14 +43,12 @@ class TicTacToeBoard:
 
     @property
     def next_marker_to_place(self) -> Marker:
-        player_marker_count = len(self._state) - self._state.count(
-            TicTacToeBoard.Marker.EMPTY
-        )
+        player_marker_count = len(self._state) - self._state.count(Board.Marker.EMPTY)
         logger.debug(f"{player_marker_count=}")
         return (
-            TicTacToeBoard.Marker.FIRST_PLAYER
+            Board.Marker.FIRST_PLAYER
             if player_marker_count % 2 == 0
-            else TicTacToeBoard.Marker.SECOND_PLAYER
+            else Board.Marker.SECOND_PLAYER
         )
 
     @property
@@ -58,7 +56,7 @@ class TicTacToeBoard:
         return tuple(idx for idx in range(len(self._state)) if not self.occupied(idx))
 
     def occupied(self, idx) -> bool:
-        return self._state[idx] != TicTacToeBoard.Marker.EMPTY
+        return self._state[idx] != Board.Marker.EMPTY
 
     def transition(self, idx: int) -> Self:
         if idx not in self.available_cell_indices:
@@ -83,9 +81,9 @@ transitioned to:
     def pretty_format(self) -> str:
         """Output pretty format"""
         keys = {
-            TicTacToeBoard.Marker.EMPTY: "_",
-            TicTacToeBoard.Marker.FIRST_PLAYER: "X",
-            TicTacToeBoard.Marker.SECOND_PLAYER: "O",
+            Board.Marker.EMPTY: "_",
+            Board.Marker.FIRST_PLAYER: "X",
+            Board.Marker.SECOND_PLAYER: "O",
         }
 
         s = ""
