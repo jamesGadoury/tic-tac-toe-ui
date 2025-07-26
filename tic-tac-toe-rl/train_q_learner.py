@@ -187,6 +187,7 @@ def training_loop(params: TrainingParams, output_dir: Path):
             agent_is_first_player=False,
             training_stats=training_stats,
         )
+        # TODO: should change outcomes to be "ego cenric"
         training_stats["outcomes"].append(outcome)
 
     save(
