@@ -1,6 +1,6 @@
 import pytest
-from agent import EgocentricMarker, canonicalize, remap_to_egocentric_board
-from tic_tac_toe import Board, Marker, new_board, next_marker_to_place, transition
+from egocentric import EgocentricMarker, canonicalize, remap_to_egocentric_board
+from tic_tac_toe import Marker, new_board, next_marker_to_place, transition
 
 
 def test_remap_empty_board_all_empty():
