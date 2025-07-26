@@ -29,22 +29,25 @@ async function loadJSONIfExists(url) {
         return null;
     }
 }
+class QAgent {
+    #qTable;
 
-class Agent {
-    #valueTable;
-
-    constructor(valueTable) {
-        this.#valueTable = valueTable;
+    constructor(qTable) {
+        this.#qTable = qTable;
     }
 
-    serialize(board) {
+    serialize(board, action) {
         // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
         //       this matches the gym_tictactoe env
-        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "");
+        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "") + `${action}`;
     }
 
-    getValue(board) {
-        return this.#valueTable[this.serialize(board)];
+    getValue(board, action) {
+        const key = this.serialize(board, action);
+        if (key in this.#qTable) {
+            return this.#qTable[key];
+        }
+        return 0.0;
     }
 
     getMove(board) {
@@ -54,14 +57,13 @@ class Agent {
         const estimatedValues = emptyCellsIndices.map(idx => {
             const possibleBoard = [...board];
             possibleBoard[idx] = COMPUTER;
-            return this.getValue(possibleBoard);
+            return this.getValue(possibleBoard, idx);
         });
         const maxEstimatedValue = Math.max(...estimatedValues);
         const bestSlot = estimatedValues.findIndex(v => v === maxEstimatedValue);
         return emptyCellsIndices[bestSlot];
     }
 }
-
 class TicTacToe {
     // private game state
     #boardState;
@@ -83,20 +85,20 @@ class TicTacToe {
         this.#isGameOver = false;
         this.currentPlayer = Math.random() < 0.5 ? HUMAN : COMPUTER;
 
-        // try to fetch json for value table, if it doesn't exist we will
+        // try to fetch json for q table, if it doesn't exist we will
         // fallback on default heuristics for computer
-        const path = "./value_table.json";
+        const path = "./q_table.json";
         loadJSONIfExists(path)
-            .then(valueTable => {
-                if (!valueTable) {
+            .then(table => {
+                if (!table) {
                     console.log(`Could not find json file at path ${path}`);
                     return;
                 }
 
-                this.#agent = new Agent(valueTable);
+                this.#agent = new QAgent(table);
             })
             .catch(err => {
-                console.error(`Unexpected error loading valueTable at path ${path}: `, err);
+                console.error(`Unexpected error loading table at path ${path}: `, err);
             });
 
 
