@@ -29,41 +29,6 @@ async function loadJSONIfExists(url) {
         return null;
     }
 }
-
-// # TODO: should I just delete this?
-class ValueAgent {
-    #valueTable;
-
-    constructor(valueTable) {
-        this.#valueTable = valueTable;
-    }
-
-    serialize(board) {
-        // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
-        //       this matches the gym_tictactoe env
-        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "");
-    }
-
-    getValue(board) {
-        return this.#valueTable[this.serialize(board)];
-    }
-
-    getMove(board) {
-        // NOTE: we use flatMap so that we can return empty arrays in the callback
-        //       for non empty cells which will then get dropped by the flatten operation
-        const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
-        const estimatedValues = emptyCellsIndices.map(idx => {
-            const possibleBoard = [...board];
-            possibleBoard[idx] = COMPUTER;
-            return this.getValue(possibleBoard);
-        });
-        const maxEstimatedValue = Math.max(...estimatedValues);
-        const bestSlot = estimatedValues.findIndex(v => v === maxEstimatedValue);
-        return emptyCellsIndices[bestSlot];
-    }
-}
-
-// TODO: there's some duplicate logic with above, consolidate
 class QAgent {
     #qTable;
 
@@ -120,9 +85,8 @@ class TicTacToe {
         this.#isGameOver = false;
         this.currentPlayer = Math.random() < 0.5 ? HUMAN : COMPUTER;
 
-        // try to fetch json for value table, if it doesn't exist we will
+        // try to fetch json for q table, if it doesn't exist we will
         // fallback on default heuristics for computer
-        // const path = "./value_table.json";
         const path = "./q_table.json";
         loadJSONIfExists(path)
             .then(table => {
