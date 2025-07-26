@@ -6,7 +6,7 @@ from tic_tac_toe import (
     Board,
     GameState,
     Marker,
-    available_cell_indices,
+    available_plays,
     first_player_won,
     game_state,
     is_tied,
@@ -29,10 +29,10 @@ def test_initial_state_and_properties():
     # no one has moved, so FIRST_PLAYER goes next
     assert next_marker_to_place(board) is Marker.FIRST_PLAYER
     # all cells available initially
-    assert available_cell_indices(board) == tuple(range(9))
+    assert available_plays(board) == tuple(range(9))
 
 
-def test_occupied_and_available_cell_indices():
+def test_occupied_and_available_plays():
     board = new_board()
     # no cell is occupied at start
     for i in range(9):
@@ -45,9 +45,9 @@ def test_occupied_and_available_cell_indices():
     b2 = transition(board, 4)
     assert occupied(board, 4) is False  # original unchanged
     assert occupied(b2, 4) is True
-    # available_cell_indices must shrink by one
-    assert 4 not in available_cell_indices(b2)
-    assert len(available_cell_indices(b2)) == 8
+    # available_plays must shrink by one
+    assert 4 not in available_plays(b2)
+    assert len(available_plays(b2)) == 8
 
 
 def test_transition_immutability_and_alternation():
@@ -90,11 +90,11 @@ def test_transition_illegal_and_edge_indices():
 def test_sequence_exhausts_and_errors_on_full():
     b = new_board()
     for i in range(9):
-        assert i in available_cell_indices(b) or -1 in available_cell_indices(b)
+        assert i in available_plays(b) or -1 in available_plays(b)
         # always legal until full
         b = transition(b, i)
     # now no available cells
-    assert available_cell_indices(b) == ()
+    assert available_plays(b) == ()
     # any further transition is illegal
     with pytest.raises(RuntimeError):
         b = transition(b, 0)
@@ -109,7 +109,7 @@ def test_state_property_is_tuple_and_readonly():
         st[0] = Marker.FIRST_PLAYER  # type: ignore
 
 
-def test_available_cell_indices_order_and_type():
+def test_available_plays_order_and_type():
     b = new_board()
     # after moves [3,7,0], the available must be all others in ascending order
     for i in (
@@ -119,7 +119,7 @@ def test_available_cell_indices_order_and_type():
     ):
         b = transition(b, i)
     expected = tuple(i for i in range(9) if i not in {3, 7, 0})
-    assert available_cell_indices(b) == expected
+    assert available_plays(b) == expected
 
 
 def test_transition_returns_new_instance():

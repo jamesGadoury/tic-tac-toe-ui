@@ -42,13 +42,13 @@ def occupied(board: Board, idx: int) -> bool:
 
 
 @cache
-def available_cell_indices(board: Board) -> tuple[int, ...]:
+def available_plays(board: Board) -> tuple[int, ...]:
     return tuple(idx for idx in range(len(board)) if not occupied(board, idx))
 
 
 @cache
 def transition(board: Board, idx: int) -> Board:
-    if idx not in available_cell_indices(board):
+    if idx not in available_plays(board):
         raise RuntimeError("illegal move")
 
     updated_board = list(board)
