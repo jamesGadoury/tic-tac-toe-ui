@@ -19,6 +19,19 @@ from tic_tac_toe import (
 )
 from tqdm import tqdm
 
+# TODO: break up script into focused scripts
+#  1. self play (with one player frozen)
+#  2. random player
+#  3. train from past sars transition pairs
+#  4. make dir structure more strongly typed somehow
+#  5. update all scripts so that we can dynamically load
+#     artifacts (e.g. tables) to build training off of
+#  6. automatic analysis scripts
+#  7. collect training details that show a "trail"
+#     e.g. train x -> dir 1, load dir 1 and train y -> dir 2, etc
+#     then in whatever dir n, can track back to past dirs and
+#     training stats
+
 
 @dataclass
 class TrainingParams:
