@@ -57,6 +57,7 @@ def save(
     _save_obj(q_learner.q_table, output_dir / "q_table.json")
     _save_obj(training_stats["td_error"], output_dir / "td_error.json")
     _save_obj(training_stats["outcomes"], output_dir / "outcomes.json")
+    _save_obj(training_stats["rewards"], output_dir / "rewards.json")
     _save_obj(training_stats["transitions"], output_dir / "transitions.json")
     _save_obj(asdict(training_params), output_dir / "training_params.json")
 
@@ -94,6 +95,7 @@ def q_learner_play(
     # TODO: really this should be a dataclass not a dict, maybe
     #       can typedef that something should have a member?
     training_stats["transitions"].append((state_t, action, reward, next_board))
+    training_stats["rewards"].append(reward)
     return next_board
 
 
@@ -175,7 +177,7 @@ def training_loop(params: TrainingParams, output_dir: Path):
     # TODO: handle pretrained dir to load artifacts (such as past training params and q tables)
     q_learner = QLearner()
 
-    training_stats = {"td_error": [], "outcomes": [], "transitions": []}
+    training_stats = {"td_error": [], "outcomes": [], "transitions": [], "rewards": []}
 
     # TODO: for now hardcoding agent as second player, but break this script
     #        into multiple scripts (and entrypoints specific to each training modality)
