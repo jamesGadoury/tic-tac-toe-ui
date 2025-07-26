@@ -7,9 +7,19 @@ QTable = dict[str, float]
 
 
 class QLearner:
-    def __init__(self):
+    def __init__(self, frozen: bool = False):
         self._canonical_q_table: QTable = {}
         self._q_table: QTable = {}
+        self._frozen: bool = frozen
+
+    @classmethod
+    def load(
+        cls, canonical_q_table: QTable, q_table: QTable, frozen: bool = False
+    ) -> "QLearner":
+        learner = QLearner(frozen=frozen)
+        learner._canonical_q_table = canonical_q_table
+        learner._q_table = q_table
+        return learner
 
     @property
     def canonical_q_table(self):
@@ -72,7 +82,11 @@ class QLearner:
         state_t_next: Board,
         learning_rate: float,
         discount_factor: float = 1.0,
+        training_stats: dict = {},
     ):
+        if self._frozen:
+            return
+
         canonical_state_action_t, _ = self.serialize_state_action(
             state=state_t, action=action
         )
@@ -80,8 +94,11 @@ class QLearner:
 
         if game_state(state_t_next) != GameState.INCOMPLETE:
             # next state is terminal so all q values at next state will be 0
+            td_error = reward - q_t
+            if "td_error" in training_stats:
+                training_stats["td_error"].append(td_error)
             self._update_q_tables(
-                state=state_t, action=action, q=q_t + learning_rate * (reward - q_t)
+                state=state_t, action=action, q=q_t + learning_rate * td_error
             )
             return
 
@@ -99,7 +116,8 @@ class QLearner:
         max_q_next = max(next_transition_qs)
 
         td_error = reward + discount_factor * max_q_next - q_t
-
+        if "td_error" in training_stats:
+            training_stats["td_error"].append(td_error)
         self._update_q_tables(
             state=state_t, action=action, q=q_t + learning_rate * td_error
         )

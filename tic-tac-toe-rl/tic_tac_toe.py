@@ -82,7 +82,7 @@ def pretty_format(board: Board) -> str:
     return s
 
 
-class GameState(Enum):
+class GameState(IntEnum):
     INCOMPLETE = 0
     FIRST_PLAYER_WON = 1
     SECOND_PLAYER_WON = 2
