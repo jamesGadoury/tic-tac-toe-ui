@@ -1,15 +1,11 @@
 import logging
-from typing import Self
+from enum import Enum
+from typing import Self, cast
 
-import numpy as np
-
-# place this at module top
 logger = logging.getLogger(__name__)
 
 
 class TicTacToeBoard:
-    EMPTY_CELL, FIRST_PLAYER_CELL, SECOND_PLAYER_CELL = 0, 1, 2
-
     WIN_COMBOS = (
         (0, 1, 2),
         (3, 4, 5),
@@ -21,72 +17,78 @@ class TicTacToeBoard:
         (2, 4, 6),
     )
 
-    WIN_ARRAY = np.array(WIN_COMBOS, dtype=int)  # shape (8,3)
+    class Marker(Enum):
+        EMPTY = 0
+        FIRST_PLAYER = 1
+        SECOND_PLAYER = 2
+
+    State = tuple[
+        Marker,
+        Marker,
+        Marker,
+        Marker,
+        Marker,
+        Marker,
+        Marker,
+        Marker,
+        Marker,
+    ]
 
     def __init__(self):
-        # NOTE: using EMPTY in case that value changes
-        #       for whatever reason, but obv if EMPTY=0
-        #       then this is equivalent to np.zeros((9,))
-        self._state = np.ones((9,)) * TicTacToeBoard.EMPTY_CELL
+        self._state = cast(TicTacToeBoard.State, (TicTacToeBoard.Marker.EMPTY,) * 9)
 
     @property
-    def state(self) -> np.ndarray:
+    def state(self) -> State:
         return self._state
 
-    def player_to_move(self) -> int:
+    @property
+    def next_marker_to_place(self) -> Marker:
+        player_marker_count = len(self._state) - self._state.count(
+            TicTacToeBoard.Marker.EMPTY
+        )
+        logger.debug(f"{player_marker_count=}")
         return (
-            TicTacToeBoard.FIRST_PLAYER_CELL
-            if len(self.available_cell_indices()) % 2 == 1
-            else TicTacToeBoard.SECOND_PLAYER_CELL
+            TicTacToeBoard.Marker.FIRST_PLAYER
+            if player_marker_count % 2 == 0
+            else TicTacToeBoard.Marker.SECOND_PLAYER
         )
 
-    def available_cell_indices(self) -> np.ndarray:
-        return (self._state == TicTacToeBoard.EMPTY_CELL).nonzero()[0]
+    @property
+    def available_cell_indices(self) -> tuple[int, ...]:
+        return tuple(idx for idx in range(len(self._state)) if not self.occupied(idx))
 
-    def terminated(self) -> bool:
-        return self.tied() or self.first_player_won() or self.second_player_won()
-
-    def tied(self) -> bool:
-        return (self._state != TicTacToeBoard.EMPTY_CELL).all()
-
-    def first_player_won(self) -> bool:
-        return self.player_won(player=TicTacToeBoard.FIRST_PLAYER_CELL)
-
-    def second_player_won(self) -> bool:
-        return self.player_won(player=TicTacToeBoard.SECOND_PLAYER_CELL)
-
-    def player_won(self, player: int) -> bool:
-        cells = self._state[TicTacToeBoard.WIN_ARRAY]
-        return bool(np.any(np.all(cells == player, axis=1)))
+    def occupied(self, idx) -> bool:
+        return self._state[idx] != TicTacToeBoard.Marker.EMPTY
 
     def transition(self, idx: int) -> Self:
-        if self.terminated():
-            raise RuntimeError("move attempted on completed game")
-
-        if idx not in self.available_cell_indices():
+        if idx not in self.available_cell_indices:
             raise RuntimeError("illegal move")
+
         new_board = self.__class__()
-        new_board._state = self._state.copy()
-        new_board._state[idx] = self.player_to_move()
+        updated_state = list(self._state)
+        updated_state[idx] = self.next_marker_to_place
+        new_board._state = tuple(updated_state)
+
+        logger.debug(
+            f"""
+transitioned from:
+{self.pretty_format()}
+transitioned to:
+{new_board.pretty_format()}
+        """
+        )
+
         return new_board
 
-    def debug_display(self) -> None:
-        """Log the board layout (ignored if logging level is set to DEBUG."""
+    def pretty_format(self) -> str:
+        """Output pretty format"""
         keys = {
-            TicTacToeBoard.FIRST_PLAYER_CELL: "X",
-            TicTacToeBoard.SECOND_PLAYER_CELL: "O",
-            TicTacToeBoard.EMPTY_CELL: "_",
+            TicTacToeBoard.Marker.EMPTY: "_",
+            TicTacToeBoard.Marker.FIRST_PLAYER: "X",
+            TicTacToeBoard.Marker.SECOND_PLAYER: "O",
         }
 
-        lines = []
+        s = ""
         for i in range(0, 9, 3):
-            lines.append(
-                f"{keys[self._state[i]]} "
-                f"{keys[self._state[i+1]]} "
-                f"{keys[self._state[i+2]]}"
-            )
-
-        for row in lines:
-            logger.log(logging.DEBUG, row)
-        # add a blank line for spacing
-        logger.log(logging.DEBUG, "")
+            s += f"{keys[self._state[i]]} {keys[self._state[i+1]]} {keys[self._state[i+2]]}\n"
+        return s
