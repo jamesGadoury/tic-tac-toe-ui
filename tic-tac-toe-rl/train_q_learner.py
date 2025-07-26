@@ -17,6 +17,7 @@ from tic_tac_toe import (
     next_marker_to_place,
     transition,
 )
+from tqdm import tqdm
 
 
 @dataclass
@@ -165,7 +166,7 @@ def training_loop(params: TrainingParams, output_dir: Path):
 
     # TODO: for now hardcoding agent as second player, but break this script
     #        into multiple scripts (and entrypoints specific to each training modality)
-    for ep in range(params.n_episodes):
+    for ep in tqdm(range(params.n_episodes)):
         outcome = rollout_random_opponent(
             q_learner=q_learner,
             epsilon=params.epsilon,
