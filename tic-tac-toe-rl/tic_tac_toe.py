@@ -1,5 +1,5 @@
 import logging
-from enum import Enum
+from enum import Enum, IntEnum
 from functools import cache
 from typing import Self, cast
 
@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 class Board:
-    class Marker(Enum):
+    class Marker(IntEnum):
         EMPTY = 0
         FIRST_PLAYER = 1
         SECOND_PLAYER = 2
