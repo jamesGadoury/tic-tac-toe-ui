@@ -1,8 +1,17 @@
 import logging
 
 import pytest
-from tic_tac_toe import Board
+from tic_tac_toe import (
+    _WINNING_GAME_COMBOS,
+    Board,
+    GameState,
+    first_player_won,
+    game_state,
+    is_tied,
+    second_player_won,
+)
 
+logger = logging.getLogger(__name__)
 Marker = Board.Marker
 
 
@@ -113,3 +122,86 @@ def test_transition_returns_new_instance():
     b2 = b1.transition(5)
     assert isinstance(b2, Board)
     assert b2 is not b1
+
+
+def test_incomplete_on_new_board():
+    b = Board()
+    st = b.state
+    assert not is_tied(st)
+    assert not first_player_won(st)
+    assert not second_player_won(st)
+    assert game_state(b) == GameState.INCOMPLETE
+
+
+def test_tied_board_detection():
+    # fill without any win: [0,1,2,4,3,5,7,6,8]
+    b = Board()
+    for idx in [0, 1, 2, 4, 3, 5, 7, 6, 8]:
+        b = b.transition(idx)
+    st = b.state
+    assert is_tied(st)
+    assert not first_player_won(st)
+    assert not second_player_won(st)
+    assert game_state(b) == GameState.TIED
+
+
+@pytest.mark.parametrize("combo", _WINNING_GAME_COMBOS)
+def test_first_player_win_via_game_state(combo):
+    # Plan moves so FIRST_PLAYER plays at positions 0,2,4 in seq:
+    free = [i for i in range(9) if i not in combo]
+    seq = [combo[0], free[0], combo[1], free[1], combo[2]]
+    logger.debug(f"{seq=}")
+
+    b = Board()
+    for idx in seq:
+        b = b.transition(idx)
+
+    st = b.state
+    assert first_player_won(st)
+    assert not second_player_won(st)
+    assert not is_tied(st)
+    assert game_state(b) == GameState.FIRST_PLAYER_WON
+
+
+@pytest.mark.parametrize("combo", _WINNING_GAME_COMBOS)
+def test_second_player_win_via_game_state(combo):
+    # Plan moves so SECOND_PLAYER plays at positions 1,3,5 in seq:
+    #   [F1, combo[0], F2, combo[1], F3, combo[2]]
+    free = [i for i in range(9) if i not in combo]
+    F1, F2, F3 = free[0], free[1], free[2]
+    if (
+        F1,
+        F2,
+        F3,
+    ) in _WINNING_GAME_COMBOS:
+        F3 = free[3]
+
+    seq = [F1, combo[0], F2, combo[1], F3, combo[2]]
+
+    b = Board()
+    for idx in seq:
+        b = b.transition(idx)
+
+    st = b.state
+    assert second_player_won(st)
+    assert not first_player_won(st)
+    assert not is_tied(st)
+    assert game_state(b) == GameState.SECOND_PLAYER_WON
+
+
+def test_mixed_states_do_not_falsely_report_win_or_tie():
+    # Partial fill, no winner yet
+    b = Board().transition(0).transition(3).transition(1)
+    st = b.state
+    assert not is_tied(st)
+    assert not first_player_won(st)
+    assert not second_player_won(st)
+    assert game_state(b) == GameState.INCOMPLETE
+
+    # Three in a row but interrupted by opposite marker
+    # e.g. [0]=X, [1]=O, [2]=X → no winner
+    b2 = Board().transition(0).transition(1).transition(2)
+    st2 = b2.state
+    assert not first_player_won(st2)
+    assert not second_player_won(st2)
+    assert game_state(b2) == GameState.INCOMPLETE

@@ -1,22 +1,12 @@
 import logging
 from enum import Enum
+from functools import cache
 from typing import Self, cast
 
 logger = logging.getLogger(__name__)
 
 
 class Board:
-    WIN_COMBOS = (
-        (0, 1, 2),
-        (3, 4, 5),
-        (6, 7, 8),
-        (0, 3, 6),
-        (1, 4, 7),
-        (2, 5, 8),
-        (0, 4, 8),
-        (2, 4, 6),
-    )
-
     class Marker(Enum):
         EMPTY = 0
         FIRST_PLAYER = 1
@@ -90,3 +80,69 @@ transitioned to:
         for i in range(0, 9, 3):
             s += f"{keys[self._state[i]]} {keys[self._state[i+1]]} {keys[self._state[i+2]]}\n"
         return s
+
+
+class GameState(Enum):
+    INCOMPLETE = 0
+    FIRST_PLAYER_WON = 1
+    SECOND_PLAYER_WON = 2
+    TIED = 3
+
+
+def game_state(board: Board) -> GameState:
+    if is_tied(board.state):
+        return GameState.TIED
+    if first_player_won(board.state):
+        return GameState.FIRST_PLAYER_WON
+    if second_player_won(board.state):
+        return GameState.SECOND_PLAYER_WON
+    return GameState.INCOMPLETE
+
+
+@cache
+def is_tied(board_state: Board.State) -> bool:
+    return all([marker != Board.Marker.EMPTY for marker in board_state])
+
+
+@cache
+def first_player_won(board_state: Board.State) -> bool:
+    winning_player_marker = _find_winning_player_marker(board_state)
+    logger.debug(f"{winning_player_marker=}")
+    if winning_player_marker is None:
+        return False
+    return winning_player_marker == Board.Marker.FIRST_PLAYER
+
+
+@cache
+def second_player_won(board_state: Board.State) -> bool:
+    winning_player_marker = _find_winning_player_marker(board_state)
+    logger.debug(f"{winning_player_marker=}")
+    if winning_player_marker is None:
+        return False
+    return winning_player_marker == Board.Marker.SECOND_PLAYER
+
+
+_WINNING_GAME_COMBOS = (
+    (0, 1, 2),
+    (3, 4, 5),
+    (6, 7, 8),
+    (0, 3, 6),
+    (1, 4, 7),
+    (2, 5, 8),
+    (0, 4, 8),
+    (2, 4, 6),
+)
+
+
+@cache
+def _find_winning_player_marker(board_state: Board.State) -> Board.Marker | None:
+    for combo in _WINNING_GAME_COMBOS:
+        line = tuple(board_state[idx] for idx in combo)
+
+        logger.debug(f"{combo=}")
+        logger.debug(f"{line=}")
+
+        if len(set(line)) == 1 and line[0] != Board.Marker.EMPTY:
+            return line[0]
+
+    return None
