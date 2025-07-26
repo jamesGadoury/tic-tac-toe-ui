@@ -30,8 +30,8 @@ class TicTacToeBoard:
         self._state = np.ones((9,)) * TicTacToeBoard.EMPTY_CELL
 
     @property
-    def state(self) -> tuple[int, ...]:
-        return tuple(self._state.tolist())
+    def state(self) -> np.ndarray:
+        return self._state
 
     def player_to_move(self) -> int:
         return (
@@ -40,8 +40,8 @@ class TicTacToeBoard:
             else TicTacToeBoard.SECOND_PLAYER_CELL
         )
 
-    def available_cell_indices(self) -> tuple[int, ...]:
-        return tuple((self._state == TicTacToeBoard.EMPTY_CELL).nonzero()[0].tolist())
+    def available_cell_indices(self) -> np.ndarray:
+        return (self._state == TicTacToeBoard.EMPTY_CELL).nonzero()[0]
 
     def terminated(self) -> bool:
         return self.tied() or self.first_player_won() or self.second_player_won()

@@ -6,9 +6,9 @@ from tic_tac_toe_board import TicTacToeBoard
 def test_initial_state_and_properties():
     board = TicTacToeBoard()
     # initial state should be all EMPTY_CELL
-    assert board.state == (TicTacToeBoard.EMPTY_CELL,) * 9
+    assert (board.state == np.array((TicTacToeBoard.EMPTY_CELL,) * 9)).all()
     # all cells available
-    assert board.available_cell_indices() == tuple(range(9))
+    assert (board.available_cell_indices() == np.array(tuple(range(9)))).all()
     # first player moves first (9 available ⇒ odd)
     assert board.player_to_move() == TicTacToeBoard.FIRST_PLAYER_CELL
     # no one has won, not tied, not terminated
