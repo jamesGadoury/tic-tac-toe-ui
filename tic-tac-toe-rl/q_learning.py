@@ -1,0 +1,105 @@
+from random import choice, random
+
+from egocentric import EgocentricBoard, canonicalize, remap_to_egocentric_board
+from tic_tac_toe import Board, GameState, available_plays, game_state, transition
+
+QTable = dict[str, float]
+
+
+class QLearner:
+    def __init__(self):
+        self._canonical_q_table: QTable = {}
+        self._q_table: QTable = {}
+
+    @property
+    def canonical_q_table(self):
+        return self._canonical_q_table
+
+    @property
+    def q_table(self):
+        return self._q_table
+
+    def serialize_state_action(self, state: Board, action: int) -> tuple[str, str]:
+        """Returns the serialized canonical state action pair and the serialized state action pair"""
+
+        def _serialize_state_action(ego_state: EgocentricBoard, action: int):
+            return "".join([str(m) for m in ego_state] + [str(action)])
+
+        ego_state: EgocentricBoard = remap_to_egocentric_board(state)
+        canonical_state: EgocentricBoard = canonicalize(ego_state)
+        canonical_state_action: str = _serialize_state_action(canonical_state, action)
+
+        # NOTE: we only initialize the canonical q table entry because we
+        #       will only ever set entries in the regular q table
+        if canonical_state_action not in self._canonical_q_table:
+            self._canonical_q_table[canonical_state_action] = 0.0
+
+        return canonical_state_action, _serialize_state_action(ego_state, action)
+
+    def get_action(self, state_t: Board, epsilon: float = 0.0) -> int:
+        if random() < epsilon:
+            # explore
+            return choice(available_plays(state_t))
+
+        # greedy
+        next_qs: list[tuple[int, float]] = []
+        for action in available_plays(state_t):
+            canon_state_action_t, _ = self.serialize_state_action(
+                state=state_t, action=action
+            )
+            next_qs.append(
+                (
+                    action,
+                    self._canonical_q_table[canon_state_action_t],
+                )
+            )
+
+        # TODO: consider randomly selecting from ties
+        return max(next_qs, key=lambda t: t[1])[0]
+
+    def _update_q_tables(self, state: Board, action: int, q: float):
+        canonical_state_action_t, state_action_t = self.serialize_state_action(
+            state=state, action=action
+        )
+        self._canonical_q_table[canonical_state_action_t] = q
+        self._q_table[state_action_t] = q
+
+    def update(
+        self,
+        state_t: Board,
+        reward: float,
+        action: int,
+        state_t_next: Board,
+        learning_rate: float,
+        discount_factor: float = 1.0,
+    ):
+        canonical_state_action_t, _ = self.serialize_state_action(
+            state=state_t, action=action
+        )
+        q_t = self._canonical_q_table[canonical_state_action_t]
+
+        if game_state(state_t_next) != GameState.INCOMPLETE:
+            # next state is terminal so all q values at next state will be 0
+            self._update_q_tables(
+                state=state_t, action=action, q=q_t + learning_rate * (reward - q_t)
+            )
+            return
+
+        next_transition_qs: list[float] = []
+        for action_next in available_plays(state_t_next):
+            canonical_state_action_t_next, _ = self.serialize_state_action(
+                state=transition(board=state_t_next, idx=action_next),
+                action=action_next,
+            )
+            next_transition_qs.append(
+                self._canonical_q_table[canonical_state_action_t_next]
+            )
+
+        # TODO: consider randomly selecting from ties
+        max_q_next = max(next_transition_qs)
+
+        td_error = reward + discount_factor * max_q_next - q_t
+
+        self._update_q_tables(
+            state=state_t, action=action, q=q_t + learning_rate * td_error
+        )
