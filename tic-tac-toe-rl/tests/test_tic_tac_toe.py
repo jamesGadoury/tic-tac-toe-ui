@@ -5,100 +5,104 @@ from tic_tac_toe import (
     _WINNING_GAME_COMBOS,
     Board,
     GameState,
+    Marker,
+    available_cell_indices,
     first_player_won,
     game_state,
     is_tied,
+    new_board,
+    next_marker_to_place,
+    occupied,
     second_player_won,
+    transition,
 )
 
 logger = logging.getLogger(__name__)
-Marker = Board.Marker
 
 
 def test_initial_state_and_properties():
-    board = Board()
+    board = new_board()
     # state must be a 9‐tuple of EMPTY
-    assert isinstance(board.state, tuple)
-    assert len(board.state) == 9
-    assert all(cell is Marker.EMPTY for cell in board.state)
+    assert isinstance(board, tuple)
+    assert len(board) == 9
+    assert all(cell is Marker.EMPTY for cell in board)
     # no one has moved, so FIRST_PLAYER goes next
-    assert board.next_marker_to_place is Marker.FIRST_PLAYER
+    assert next_marker_to_place(board) is Marker.FIRST_PLAYER
     # all cells available initially
-    assert board.available_cell_indices == tuple(range(9))
+    assert available_cell_indices(board) == tuple(range(9))
 
 
 def test_occupied_and_available_cell_indices():
-    board = Board()
+    board = new_board()
     # no cell is occupied at start
     for i in range(9):
-        assert board.occupied(i) is False
+        assert occupied(board, i) is False
     # out‐of‐range raises IndexError
     with pytest.raises(IndexError):
-        board.occupied(9)
+        occupied(board, 9)
 
     # after a move at 4, that cell must be occupied
-    b2 = board.transition(4)
-    assert board.occupied(4) is False  # original unchanged
-    assert b2.occupied(4) is True
+    b2 = transition(board, 4)
+    assert occupied(board, 4) is False  # original unchanged
+    assert occupied(b2, 4) is True
     # available_cell_indices must shrink by one
-    assert 4 not in b2.available_cell_indices
-    assert len(b2.available_cell_indices) == 8
+    assert 4 not in available_cell_indices(b2)
+    assert len(available_cell_indices(b2)) == 8
 
 
 def test_transition_immutability_and_alternation():
-    board = Board()
+    board = new_board()
     # first move -> index 2
-    b1 = board.transition(2)
-    assert b1.state[2] is Marker.FIRST_PLAYER
-    assert board.state[2] is Marker.EMPTY  # original untouched
+    b1 = transition(board, 2)
+    assert b1[2] is Marker.FIRST_PLAYER
+    assert board[2] is Marker.EMPTY  # original untouched
     # now it's second player's turn
-    assert b1.next_marker_to_place is Marker.SECOND_PLAYER
+    assert next_marker_to_place(b1) is Marker.SECOND_PLAYER
 
     # second move -> index 5
-    b2 = b1.transition(5)
-    assert b2.state[5] is Marker.SECOND_PLAYER
+    b2 = transition(b1, 5)
+    assert b2[5] is Marker.SECOND_PLAYER
     # back to first player's turn
-    assert b2.next_marker_to_place is Marker.FIRST_PLAYER
+    assert next_marker_to_place(b2) is Marker.FIRST_PLAYER
 
     # older boards remain unchanged
-    assert board.state.count(Marker.EMPTY) == 9
-    assert b1.state[5] is Marker.EMPTY
+    assert board.count(Marker.EMPTY) == 9
+    assert b1[5] is Marker.EMPTY
 
 
 def test_transition_illegal_and_edge_indices():
-    board = Board()
-    b1 = board.transition(0)
+    board = new_board()
+    b1 = transition(board, 0)
     # cannot move again on 0
     with pytest.raises(RuntimeError) as ei:
-        b1.transition(0)
+        b1 = transition(b1, 0)
     assert "illegal move" in str(ei.value)
 
     # non‐int also illegal
     with pytest.raises(RuntimeError):
-        board.transition("foo")  # type: ignore
+        transition(board, "foo")  # type: ignore
 
     # negative index not available
     with pytest.raises(RuntimeError):
-        board.transition(-1)
+        transition(board, -1)
 
 
 def test_sequence_exhausts_and_errors_on_full():
-    board = Board()
-    b = board
+    b = new_board()
     for i in range(9):
-        assert i in b.available_cell_indices or -1 in b.available_cell_indices
+        assert i in available_cell_indices(b) or -1 in available_cell_indices(b)
         # always legal until full
-        b = b.transition(i)
+        b = transition(b, i)
     # now no available cells
-    assert b.available_cell_indices == ()
+    assert available_cell_indices(b) == ()
     # any further transition is illegal
     with pytest.raises(RuntimeError):
-        b.transition(0)
+        b = transition(b, 0)
 
 
 def test_state_property_is_tuple_and_readonly():
-    board = Board()
-    st = board.state
+    board = new_board()
+    st = board
     assert isinstance(st, tuple)
     with pytest.raises(TypeError):
         # cannot assign to a tuple element
@@ -106,27 +110,27 @@ def test_state_property_is_tuple_and_readonly():
 
 
 def test_available_cell_indices_order_and_type():
-    board = Board()
+    b = new_board()
     # after moves [3,7,0], the available must be all others in ascending order
-    b = board.transition(3).transition(7).transition(0)
+    for i in (
+        3,
+        7,
+        0,
+    ):
+        b = transition(b, i)
     expected = tuple(i for i in range(9) if i not in {3, 7, 0})
-    assert b.available_cell_indices == expected
+    assert available_cell_indices(b) == expected
 
 
 def test_transition_returns_new_instance():
-    board = Board()
-    b1 = board.transition(4)
-    assert isinstance(b1, Board)
+    board = new_board()
+    b1 = transition(board, 4)
     assert b1 is not board
-    # further transitions chain
-    b2 = b1.transition(5)
-    assert isinstance(b2, Board)
-    assert b2 is not b1
 
 
 def test_incomplete_on_new_board():
-    b = Board()
-    st = b.state
+    b = new_board()
+    st = b
     assert not is_tied(st)
     assert not first_player_won(st)
     assert not second_player_won(st)
@@ -135,10 +139,10 @@ def test_incomplete_on_new_board():
 
 def test_tied_board_detection():
     # fill without any win: [0,1,2,4,3,5,7,6,8]
-    b = Board()
+    b = new_board()
     for idx in [0, 1, 2, 4, 3, 5, 7, 6, 8]:
-        b = b.transition(idx)
-    st = b.state
+        b = transition(b, idx)
+    st = b
     assert is_tied(st)
     assert not first_player_won(st)
     assert not second_player_won(st)
@@ -152,11 +156,11 @@ def test_first_player_win_via_game_state(combo):
     seq = [combo[0], free[0], combo[1], free[1], combo[2]]
     logger.debug(f"{seq=}")
 
-    b = Board()
+    b = new_board()
     for idx in seq:
-        b = b.transition(idx)
+        b = transition(b, idx)
 
-    st = b.state
+    st = b
     assert first_player_won(st)
     assert not second_player_won(st)
     assert not is_tied(st)
@@ -178,11 +182,11 @@ def test_second_player_win_via_game_state(combo):
 
     seq = [F1, combo[0], F2, combo[1], F3, combo[2]]
 
-    b = Board()
+    b = new_board()
     for idx in seq:
-        b = b.transition(idx)
+        b = transition(b, idx)
 
-    st = b.state
+    st = b
     assert second_player_won(st)
     assert not first_player_won(st)
     assert not is_tied(st)
@@ -191,8 +195,14 @@ def test_second_player_win_via_game_state(combo):
 
 def test_mixed_states_do_not_falsely_report_win_or_tie():
     # Partial fill, no winner yet
-    b = Board().transition(0).transition(3).transition(1)
-    st = b.state
+    b = new_board()
+    for i in (
+        0,
+        3,
+        1,
+    ):
+        b = transition(b, i)
+    st = b
     assert not is_tied(st)
     assert not first_player_won(st)
     assert not second_player_won(st)
@@ -200,8 +210,14 @@ def test_mixed_states_do_not_falsely_report_win_or_tie():
 
     # Three in a row but interrupted by opposite marker
     # e.g. [0]=X, [1]=O, [2]=X → no winner
-    b2 = Board().transition(0).transition(1).transition(2)
-    st2 = b2.state
+    b2 = new_board()
+    for i in (
+        0,
+        1,
+        2,
+    ):
+        b2 = transition(b2, i)
+    st2 = b2
     assert not first_player_won(st2)
     assert not second_player_won(st2)
     assert game_state(b2) == GameState.INCOMPLETE
