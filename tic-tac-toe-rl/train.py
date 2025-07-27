@@ -58,6 +58,7 @@ class TrainingParams:
     n_episodes: int
     # TODO: do we use same pretrained path for frozen and the training agent?
     pretrained_dir: str | None
+    opponent_pretrained_dir: str | None
     seed: float
     learning_rate_max: float
     learning_rate_min: float
@@ -211,7 +212,7 @@ def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | No
     return most_recent
 
 
-def load_q_agent(pretrained_dir: Path) -> QAgent:
+def load_q_agent(pretrained_dir: Path, frozen: bool = False) -> QAgent:
     assert pretrained_dir is not None
 
     # NOTE: very hacky, have to search for canonical first because q_table will match both canonical and regular q tables
@@ -226,10 +227,12 @@ def load_q_agent(pretrained_dir: Path) -> QAgent:
     canonical_q_table = json.load(open(canonical_q_table_pth, "r"))
     q_table = json.load(open(q_table_pth, "r"))
 
-    print(f"Loaded {canonical_q_table_pth}")
-    print(f"Loaded {q_table_pth}")
+    logger.info(f"Loaded {canonical_q_table_pth}")
+    logger.info(f"Loaded {q_table_pth}")
 
-    return QAgent.load(canonical_q_table=canonical_q_table, q_table=q_table)
+    return QAgent.load(
+        canonical_q_table=canonical_q_table, q_table=q_table, frozen=frozen
+    )
 
 
 def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir: Path):
@@ -244,15 +247,18 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
         if params.pretrained_dir is not None
         else QAgent()
     )
-
     opponent = (
         RandomAgent()
         if params.opponent == RANDOM_AGENT
         else (
-            QAgent.load(
-                canonical_q_table=q_agent.canonical_q_table,
-                q_table=q_agent.q_table,
-                frozen=True,
+            (
+                QAgent.load(
+                    canonical_q_table=q_agent.canonical_q_table,
+                    q_table=q_agent.q_table,
+                    frozen=True,
+                )
+                if params.opponent_pretrained_dir is None
+                else load_q_agent(Path(params.opponent_pretrained_dir), frozen=True)
             )
             if params.opponent == FROZEN_Q_AGENT
             else HumanAgent()
@@ -339,6 +345,11 @@ if __name__ == "__main__":
     cli.add_argument(
         "--pretrained-dir", help="dir to load past training artifacts from", type=str
     )
+    cli.add_argument(
+        "--opponent-pretrained-dir",
+        help="dir to load past training artifacts from for opponent",
+        type=str,
+    )
     cli.add_argument("--seed", help="random seed", type=int, default=42)
     cli.add_argument(
         "--learning-rate-max", help="max learning rate", type=float, default=0.5
@@ -419,6 +430,7 @@ if __name__ == "__main__":
         params=TrainingParams(
             n_episodes=args.n_episodes,
             pretrained_dir=args.pretrained_dir,
+            opponent_pretrained_dir=args.opponent_pretrained_dir,
             seed=args.seed,
             learning_rate_max=args.learning_rate_max,
             learning_rate_min=args.learning_rate_min,
