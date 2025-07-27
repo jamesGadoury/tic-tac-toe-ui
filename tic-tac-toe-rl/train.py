@@ -70,19 +70,18 @@ def reward_from_board_transition(board: Board) -> float:
     return 0.0
 
 
+def _save_obj(obj: Any, path: Path):
+    with open(path, "w") as f:
+        json.dump(obj, f)
+
+
 def save(
     q_agent: QAgent,
-    training_params: TrainingParams,
     episodes: list[EpisodeResults],
     transitions: list[Transition],
     output_dir: Path,
     post_fix: str = "",
 ):
-    def _save_obj(obj: Any, path: Path):
-        with open(path, "w") as f:
-            json.dump(obj, f)
-        print(f"Saved {path}")
-
     _save_obj(
         q_agent.canonical_q_table, output_dir / f"canonical_q_table_{post_fix}.json"
     )
@@ -91,7 +90,6 @@ def save(
     _save_obj(
         [asdict(t) for t in transitions], output_dir / f"transitions_{post_fix}.json"
     )
-    _save_obj(asdict(training_params), output_dir / f"training_params_{post_fix}.json")
 
 
 def load(dir: Path):
@@ -176,8 +174,10 @@ def play_episode(
     )
 
 
-def training_loop(params: TrainingParams, output_dir: Path):
+def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir: Path):
     seed(params.seed)
+
+    _save_obj(asdict(params), output_dir / f"training_params.json")
 
     # TODO: handle pretrained dir to load artifacts (such as past training params and q tables)
     # TODO: add support for frozen q agent
@@ -212,7 +212,7 @@ def training_loop(params: TrainingParams, output_dir: Path):
         episodes.append(episode_results)
         transitions += episode_transitions
 
-        if ep % 10000 == 0:
+        if ep % save_every_x_episodes == 0:
             q_agent = (
                 first_player
                 if params.training == Marker.FIRST_PLAYER
@@ -221,7 +221,6 @@ def training_loop(params: TrainingParams, output_dir: Path):
             assert type(q_agent) is QAgent
             save(
                 q_agent=q_agent,
-                training_params=params,
                 episodes=episodes,
                 transitions=transitions,
                 output_dir=output_dir,
@@ -235,7 +234,6 @@ def training_loop(params: TrainingParams, output_dir: Path):
     assert type(q_agent) is QAgent
     save(
         q_agent=q_agent,
-        training_params=params,
         episodes=episodes,
         transitions=transitions,
         output_dir=output_dir,
@@ -278,10 +276,10 @@ if __name__ == "__main__":
 
     cli.add_argument(
         "--training",
-        type=Marker,
-        choices=[Marker.FIRST_PLAYER, Marker.SECOND_PLAYER],
+        type=int,
+        choices=[1, 2],
         help="which player is training",
-        default=Marker.FIRST_PLAYER,
+        default=1,
     )
     cli.add_argument(
         "--opponent",
@@ -289,6 +287,12 @@ if __name__ == "__main__":
         choices=[RANDOM_AGENT, FROZEN_Q_AGENT],
         help="who is the opponent of the agent that is training",
         default=RANDOM_AGENT,
+    )
+    cli.add_argument(
+        "--save_every_x_episodes",
+        help="rate at which we save results",
+        type=int,
+        default=500_000,
     )
     cli.add_argument(
         "--output-dir",
@@ -300,6 +304,9 @@ if __name__ == "__main__":
 
     output_dir = args.output_dir / str(time_ns())
     output_dir.mkdir(parents=True)
+
+    print(f"Saving all outputs to path: {output_dir}")
+
     training_loop(
         params=TrainingParams(
             n_episodes=args.n_episodes,
@@ -312,7 +319,8 @@ if __name__ == "__main__":
             epsilon_min=args.epsilon_min,
             epsilon_decay_rate=args.epsilon_decay_rate,
             opponent=args.opponent,
-            training=args.training,
+            training=Marker(args.training),
         ),
+        save_every_x_episodes=args.save_every_x_episodes,
         output_dir=output_dir,
     )
