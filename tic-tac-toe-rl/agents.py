@@ -32,9 +32,27 @@ class RandomAgent(Agent):
 
 class HumanAgent(Agent):
     def get_action(self, state_t: Board, epsilon: float) -> int:
+        available_plays_t = available_plays(state_t)
+
+        def _pretty_format_available_plays():
+            s = ""
+            for i in range(0, 9, 3):
+                s += " ".join(
+                    [
+                        str(m) if m in available_plays_t else "_"
+                        for m in (
+                            i,
+                            i + 1,
+                            i + 2,
+                        )
+                    ]
+                )
+                s += "\n"
+            return s
+
         print("---------------------------------")
         print(f"current board: \n{pretty_format(state_t)}")
-        print(f"available_plays: {available_plays(state_t)}")
+        print(f"available plays: \n{_pretty_format_available_plays()}")
         print("your play?")
         play = int(input())
         while play not in available_plays(state_t):
