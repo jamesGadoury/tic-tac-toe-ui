@@ -226,14 +226,11 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
 
     assert output_dir.exists() and output_dir.is_dir()
 
-    params.opponent = (
-        FROZEN_Q_AGENT if params.pretrained_dir is not None else RANDOM_AGENT
-    )
     _save_obj(asdict(params), output_dir / f"training_params.json")
 
     first_player, second_player = (
         setup_self_play(params)
-        if params.pretrained_dir is not None
+        if params.opponent == FROZEN_Q_AGENT
         else setup_random_play(params)
     )
 
@@ -331,13 +328,13 @@ if __name__ == "__main__":
         help="which player is training",
         default=1,
     )
-    # cli.add_argument(
-    #     "--opponent",
-    #     type=str,
-    #     choices=[RANDOM_AGENT, FROZEN_Q_AGENT],
-    #     help="who is the opponent of the agent that is training",
-    #     default=RANDOM_AGENT,
-    # )
+    cli.add_argument(
+        "--opponent",
+        type=str,
+        choices=[RANDOM_AGENT, FROZEN_Q_AGENT],
+        help="who is the opponent of the agent that is training",
+        default=RANDOM_AGENT,
+    )
     cli.add_argument(
         "--save_every_x_episodes",
         help="rate at which we save results",
@@ -368,8 +365,7 @@ if __name__ == "__main__":
             epsilon_max=args.epsilon_max,
             epsilon_min=args.epsilon_min,
             epsilon_decay_rate=args.epsilon_decay_rate,
-            # TODO: right now training_loop controls creating agents, so doesn't make sense to set here
-            opponent="",
+            opponent=args.opponent,
             training=Marker(args.training),
         ),
         save_every_x_episodes=args.save_every_x_episodes,
