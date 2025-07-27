@@ -36,24 +36,29 @@ def main(
         load_q_agent(Path(pretrained_dir)) if pretrained_dir is not None else QAgent()
     )
     td_errors = []
-    for n in tqdm(range(n_sample_size)):
-        transitions = next(iter_transitions(root_dir=input_dir))
-        if not transitions:
-            continue
+    try:
+        for n in tqdm(range(n_sample_size)):
+            transitions = next(iter_transitions(root_dir=input_dir))
+            if not transitions:
+                continue
 
-        for i, transition in enumerate(transitions):
-            if i > n_sample_size:
-                break
+            for i, transition in enumerate(transitions):
+                if i > n_sample_size:
+                    break
 
-            td_errors.append(
-                q_agent.update(
-                    state_t=tuple(transition["state_t0"]),
-                    reward=transition["reward"],
-                    action=transition["action"],
-                    state_t_next=tuple(transition["state_t1"]),
-                    learning_rate=learning_rate,
+                td_errors.append(
+                    q_agent.update(
+                        state_t=tuple(transition["state_t0"]),
+                        reward=transition["reward"],
+                        action=transition["action"],
+                        state_t_next=tuple(transition["state_t1"]),
+                        learning_rate=learning_rate,
+                    )
                 )
-            )
+    except KeyboardInterrupt as e:
+        print("detected keyboard interrupt. closing gracefully")
+    except Exception as e:
+        print(f"unexpected exception {e}. closing gracefully")
 
     td_errors = np.array(td_errors)
     abs_td_errors = abs(td_errors)
