@@ -73,6 +73,7 @@ class QAgent(Agent):
         self._canonical_q_table: QTable = {}
         self._q_table: QTable = {}
         self._frozen: bool = frozen
+        self._N: dict[str, int] = {}
 
     @classmethod
     def load(
@@ -105,6 +106,7 @@ class QAgent(Agent):
         #       will only ever set entries in the regular q table
         if canonical_state_action not in self._canonical_q_table:
             self._canonical_q_table[canonical_state_action] = 0.0
+            self._N[canonical_state_action] = 0
 
         return canonical_state_action, _serialize_state_action(ego_state, action)
 
@@ -155,14 +157,15 @@ class QAgent(Agent):
         canonical_state_action_t, _ = self.serialize_state_action(
             state=state_t, action=action
         )
+        self._N[canonical_state_action_t] += 1
+        # TODO: remove / update learning rate interface
+        lr = 1.0 / self._N[canonical_state_action_t]
         q_t = self._canonical_q_table[canonical_state_action_t]
 
         if game_state(state_t_next) != GameState.INCOMPLETE:
             # next state is terminal so all q values at next state will be 0
             td_error = reward - q_t
-            self._update_q_tables(
-                state=state_t, action=action, q=q_t + learning_rate * td_error
-            )
+            self._update_q_tables(state=state_t, action=action, q=q_t + lr * td_error)
             return td_error
 
         next_transition_qs: list[float] = []
@@ -179,7 +182,5 @@ class QAgent(Agent):
         max_q_next = max(next_transition_qs)
 
         td_error = reward + discount_factor * max_q_next - q_t
-        self._update_q_tables(
-            state=state_t, action=action, q=q_t + learning_rate * td_error
-        )
+        self._update_q_tables(state=state_t, action=action, q=q_t + lr * td_error)
         return td_error

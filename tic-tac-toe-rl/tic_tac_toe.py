@@ -111,7 +111,6 @@ def is_tied(board: Board) -> bool:
 @cache
 def first_player_won(board: Board) -> bool:
     winning_player_marker = _find_winning_player_marker(board)
-    logger.debug(f"{winning_player_marker=}")
     if winning_player_marker is None:
         return False
     return winning_player_marker == Marker.FIRST_PLAYER

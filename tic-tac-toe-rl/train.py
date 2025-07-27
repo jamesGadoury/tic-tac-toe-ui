@@ -149,6 +149,9 @@ def play_episode(
         action = agents[marker].get_action(state_t=board, epsilon=epsilon)
         next_board = transition(board, action)
         reward = reward_from_board_transition(next_board)
+        logger.debug(
+            f"\ntransition for after player {marker} played: \n\t{agents[marker]=}\n\t{action=}\n\t{reward=}\nnext state:\n{pretty_format(next_board)}\n"
+        )
         if marker == training:
             last_training_s, last_training_a = board, action
             td_error = agents[marker].update(
@@ -162,11 +165,11 @@ def play_episode(
 
         if game_state(next_board) != GameState.INCOMPLETE:
             # terminal
-            logger.debug("game is in terminal state")
             final_reward = reward if marker == training else -reward
-            # TODO: impl logging
-            # print(f"{final_reward=}")
 
+            logger.debug(
+                f"{marker} played and brought game to terminal state {game_state(next_board)=}, {final_reward=}"
+            )
             if marker != training:
                 # NOTE: we always update the agent that is training on terminal move if it didn't update this play (e.g. did not make last move)
                 assert last_training_s is not None
@@ -278,7 +281,6 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
     )
 
     episodes: list[EpisodeResults] = []
-    transitions: list[Transition] = []
     ep: int = 0
 
     try:
