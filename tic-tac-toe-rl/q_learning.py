@@ -82,10 +82,13 @@ class QLearner:
         state_t_next: Board,
         learning_rate: float,
         discount_factor: float = 1.0,
-        training_stats: dict = {},
-    ):
+    ) -> float | None:
+        """Updates tables and returns td error
+
+        If frozen then no updates will be made and no td error will be output.
+        """
         if self._frozen:
-            return
+            return None
 
         canonical_state_action_t, _ = self.serialize_state_action(
             state=state_t, action=action
@@ -95,12 +98,10 @@ class QLearner:
         if game_state(state_t_next) != GameState.INCOMPLETE:
             # next state is terminal so all q values at next state will be 0
             td_error = reward - q_t
-            if "td_error" in training_stats:
-                training_stats["td_error"].append(td_error)
             self._update_q_tables(
                 state=state_t, action=action, q=q_t + learning_rate * td_error
             )
-            return
+            return td_error
 
         next_transition_qs: list[float] = []
         for action_next in available_plays(state_t_next):
@@ -116,8 +117,7 @@ class QLearner:
         max_q_next = max(next_transition_qs)
 
         td_error = reward + discount_factor * max_q_next - q_t
-        if "td_error" in training_stats:
-            training_stats["td_error"].append(td_error)
         self._update_q_tables(
             state=state_t, action=action, q=q_t + learning_rate * td_error
         )
+        return td_error
