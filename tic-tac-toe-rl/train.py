@@ -178,9 +178,9 @@ def play_episode(
 
         board = next_board
 
+    logger.debug(f"{td_errors=}")
     n = len(td_errors)
     abs_errors = [abs(e) for e in td_errors]
-    print(f"{abs_errors=}")
     return EpisodeResults(
         n_updates=n,
         mean_td_error=sum(td_errors) / n,
