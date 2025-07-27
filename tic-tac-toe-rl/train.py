@@ -28,8 +28,8 @@ FROZEN_Q_AGENT = "FROZEN_Q_AGENT"
 @dataclass
 class TrainingParams:
     n_episodes: int
-    # TODO: do we use same pretrained dir for frozen and the training agent?
-    pretrained_dir: Path | None
+    # TODO: do we use same pretrained path for frozen and the training agent?
+    pretrained_dir: str | None
     seed: float
     learning_rate_max: float
     learning_rate_min: float
@@ -89,18 +89,6 @@ def save(
     _save_obj([asdict(r) for r in episodes], output_dir / f"episodes_{post_fix}.json")
     _save_obj(
         [asdict(t) for t in transitions], output_dir / f"transitions_{post_fix}.json"
-    )
-
-
-def load(dir: Path):
-    assert dir.is_dir()
-    canonical_q_table_path: Path = dir / "canonical_q_table.json"
-    assert canonical_q_table_path.exists()
-    q_table_path: Path = dir / "q_table.json"
-    assert q_table_path.exists()
-    return QAgent.load(
-        canonical_q_table=json.load(open(canonical_q_table_path, "r")),
-        q_table=json.load(open(q_table_path, "r")),
     )
 
 
@@ -174,18 +162,79 @@ def play_episode(
     )
 
 
-def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir: Path):
-    seed(params.seed)
-
-    _save_obj(asdict(params), output_dir / f"training_params.json")
-
-    # TODO: handle pretrained dir to load artifacts (such as past training params and q tables)
-    # TODO: add support for frozen q agent
-    assert params.opponent == RANDOM_AGENT, "only random agent supported atm"
-
+def setup_random_play(params: TrainingParams):
     first_player = QAgent() if params.training == Marker.FIRST_PLAYER else RandomAgent()
     second_player = (
         QAgent() if params.training == Marker.SECOND_PLAYER else RandomAgent()
+    )
+    return first_player, second_player
+
+
+def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | None:
+    """
+    Search recursively in `directory` for files whose name contains `substring`
+    and return the one with the most recent modification time.
+    If no such file exists, return None.
+    """
+    # Gather all matching files
+    matches = [p for p in dir.rglob(f"*{substring}*") if p.is_file()]
+    if not matches:
+        return None
+
+    # Pick the file with the max mtime
+    most_recent = max(matches, key=lambda p: p.stat().st_mtime)
+    return most_recent
+
+
+def setup_self_play(params: TrainingParams):
+    assert params.pretrained_dir is not None
+
+    # NOTE: very hacky, have to search for canonical first because q_table will match both canonical and regular q tables
+    canonical_q_table_pth = find_most_recent_file_with_substring(
+        dir=Path(params.pretrained_dir), substring="canonical_q_table"
+    )
+    assert canonical_q_table_pth is not None
+    q_table_pth = canonical_q_table_pth.with_name(
+        canonical_q_table_pth.name.replace("canonical_", "")
+    )
+
+    canonical_q_table = json.load(open(canonical_q_table_pth, "r"))
+    q_table = json.load(open(q_table_pth, "r"))
+
+    print(f"Loaded {canonical_q_table_pth}")
+    print(f"Loaded {q_table_pth}")
+
+    unfrozen_agent = QAgent.load(
+        canonical_q_table=canonical_q_table, q_table=q_table, frozen=False
+    )
+    frozen_agent = QAgent.load(
+        canonical_q_table=canonical_q_table, q_table=q_table, frozen=True
+    )
+    first_player = (
+        unfrozen_agent if params.training == Marker.FIRST_PLAYER else frozen_agent
+    )
+    second_player = (
+        unfrozen_agent if params.training == Marker.SECOND_PLAYER else frozen_agent
+    )
+
+    assert first_player is not second_player
+    return first_player, second_player
+
+
+def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir: Path):
+    seed(params.seed)
+
+    assert output_dir.exists() and output_dir.is_dir()
+
+    params.opponent = (
+        FROZEN_Q_AGENT if params.pretrained_dir is not None else RANDOM_AGENT
+    )
+    _save_obj(asdict(params), output_dir / f"training_params.json")
+
+    first_player, second_player = (
+        setup_self_play(params)
+        if params.pretrained_dir is not None
+        else setup_random_play(params)
     )
 
     episodes: list[EpisodeResults] = []
@@ -244,8 +293,9 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
 if __name__ == "__main__":
     cli = ArgumentParser()
     cli.add_argument("--n-episodes", help="how many episodes", type=int, required=True)
+    # NOTE: have to save as str because json package doesn't support Path directly
     cli.add_argument(
-        "--pretrained-dir", help="dir to load past training artifacts from", type=Path
+        "--pretrained-dir", help="dir to load past training artifacts from", type=str
     )
     cli.add_argument("--seed", help="random seed", type=int, default=42)
     cli.add_argument(
@@ -281,13 +331,13 @@ if __name__ == "__main__":
         help="which player is training",
         default=1,
     )
-    cli.add_argument(
-        "--opponent",
-        type=str,
-        choices=[RANDOM_AGENT, FROZEN_Q_AGENT],
-        help="who is the opponent of the agent that is training",
-        default=RANDOM_AGENT,
-    )
+    # cli.add_argument(
+    #     "--opponent",
+    #     type=str,
+    #     choices=[RANDOM_AGENT, FROZEN_Q_AGENT],
+    #     help="who is the opponent of the agent that is training",
+    #     default=RANDOM_AGENT,
+    # )
     cli.add_argument(
         "--save_every_x_episodes",
         help="rate at which we save results",
@@ -318,7 +368,8 @@ if __name__ == "__main__":
             epsilon_max=args.epsilon_max,
             epsilon_min=args.epsilon_min,
             epsilon_decay_rate=args.epsilon_decay_rate,
-            opponent=args.opponent,
+            # TODO: right now training_loop controls creating agents, so doesn't make sense to set here
+            opponent="",
             training=Marker(args.training),
         ),
         save_every_x_episodes=args.save_every_x_episodes,
