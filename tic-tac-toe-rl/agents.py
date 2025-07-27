@@ -2,7 +2,14 @@ from random import choice, random
 from typing import Protocol
 
 from egocentric import EgocentricBoard, canonicalize, remap_to_egocentric_board
-from tic_tac_toe import Board, GameState, available_plays, game_state, transition
+from tic_tac_toe import (
+    Board,
+    GameState,
+    available_plays,
+    game_state,
+    pretty_format,
+    transition,
+)
 
 
 class Agent(Protocol):
@@ -16,6 +23,23 @@ class Agent(Protocol):
 class RandomAgent(Agent):
     def get_action(self, state_t: Board, epsilon: float) -> int:
         return choice(available_plays(state_t))
+
+    def update(
+        self, state_t, reward, action, state_t_next, learning_rate
+    ) -> float | None:
+        return None
+
+
+class HumanAgent(Agent):
+    def get_action(self, state_t: Board, epsilon: float) -> int:
+        print("---------------------------------")
+        print(f"current board: \n{pretty_format(state_t)}")
+        print(f"available_plays: {available_plays(state_t)}")
+        print("your play?")
+        play = int(input())
+        while play not in available_plays(state_t):
+            play = int(input())
+        return play
 
     def update(
         self, state_t, reward, action, state_t_next, learning_rate

@@ -8,7 +8,7 @@ from random import choice, seed
 from time import time_ns
 from typing import Any, Protocol
 
-from agents import Agent, QAgent, RandomAgent
+from agents import Agent, HumanAgent, QAgent, RandomAgent
 from tic_tac_toe import (
     Board,
     GameState,
@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 RANDOM_AGENT = "RANDOM_AGENT"
 FROZEN_Q_AGENT = "FROZEN_Q_AGENT"
+HUMAN_AGENT = "HUMAN_AGENT"
 
 
 @dataclass
@@ -186,6 +187,7 @@ def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | No
     return most_recent
 
 
+# TODO: not loading table if doing self play against random lol
 def setup_self_play(params: TrainingParams):
     assert params.pretrained_dir is not None
 
@@ -221,6 +223,15 @@ def setup_self_play(params: TrainingParams):
     return first_player, second_player
 
 
+def setup_human_play(params: TrainingParams) -> tuple[Agent, Agent]:
+    # TODO: link in setting up the qagent from pretrained
+    first_player = QAgent() if params.training == Marker.FIRST_PLAYER else HumanAgent()
+    second_player = (
+        QAgent() if params.training == Marker.SECOND_PLAYER else HumanAgent()
+    )
+    return first_player, second_player
+
+
 def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir: Path):
     seed(params.seed)
 
@@ -231,50 +242,58 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
     first_player, second_player = (
         setup_self_play(params)
         if params.opponent == FROZEN_Q_AGENT
-        else setup_random_play(params)
+        else (
+            setup_random_play(params)
+            if params.opponent == RANDOM_AGENT
+            else setup_human_play(params)
+        )
     )
 
     episodes: list[EpisodeResults] = []
     transitions: list[Transition] = []
     ep: int = 0
-    # TODO: for now hardcoding agent as second player, but break this script
-    #        into multiple scripts (and entrypoints specific to each training modality)
-    for ep in tqdm(range(params.n_episodes)):
-        epsilon = params.epsilon_min + (params.epsilon_max - params.epsilon_min) * exp(
-            -params.epsilon_decay_rate * ep
-        )
-        learning_rate = params.learning_rate_min + (
-            params.learning_rate_max - params.learning_rate_min
-        ) * exp(-params.learning_rate_decay_rate * ep)
 
-        episode_results, episode_transitions = play_episode(
-            first_player=first_player,
-            second_player=second_player,
-            training=params.training,
-            epsilon=epsilon,
-            learning_rate=learning_rate,
-        )
+    try:
+        for ep in tqdm(range(params.n_episodes)):
+            epsilon = params.epsilon_min + (
+                params.epsilon_max - params.epsilon_min
+            ) * exp(-params.epsilon_decay_rate * ep)
+            learning_rate = params.learning_rate_min + (
+                params.learning_rate_max - params.learning_rate_min
+            ) * exp(-params.learning_rate_decay_rate * ep)
 
-        episodes.append(episode_results)
-        transitions += episode_transitions
-
-        if ep % save_every_x_episodes == 0:
-            q_agent = (
-                first_player
-                if params.training == Marker.FIRST_PLAYER
-                else second_player
+            episode_results, episode_transitions = play_episode(
+                first_player=first_player,
+                second_player=second_player,
+                training=params.training,
+                epsilon=epsilon,
+                learning_rate=learning_rate,
             )
-            assert type(q_agent) is QAgent
-            save(
-                q_agent=q_agent,
-                episodes=episodes,
-                transitions=transitions,
-                output_dir=output_dir,
-                post_fix=str(ep),
-            )
-            # clear out list so that we don't run out of ram
-            episodes = []
-            transitions = []
+
+            episodes.append(episode_results)
+            transitions += episode_transitions
+
+            if ep % save_every_x_episodes == 0:
+                q_agent = (
+                    first_player
+                    if params.training == Marker.FIRST_PLAYER
+                    else second_player
+                )
+                assert type(q_agent) is QAgent
+                save(
+                    q_agent=q_agent,
+                    episodes=episodes,
+                    transitions=transitions,
+                    output_dir=output_dir,
+                    post_fix=str(ep),
+                )
+                # clear out list so that we don't run out of ram
+                episodes = []
+                transitions = []
+    except KeyboardInterrupt as e:
+        print("encountered keyboard interrupt, finalizing outputs")
+    except Exception as e:
+        print(f"encountered unexpected exception {e}, finalizing outputs")
 
     q_agent = first_player if params.training == Marker.FIRST_PLAYER else second_player
     assert type(q_agent) is QAgent
@@ -331,7 +350,7 @@ if __name__ == "__main__":
     cli.add_argument(
         "--opponent",
         type=str,
-        choices=[RANDOM_AGENT, FROZEN_Q_AGENT],
+        choices=[RANDOM_AGENT, FROZEN_Q_AGENT, HUMAN_AGENT],
         help="who is the opponent of the agent that is training",
         default=RANDOM_AGENT,
     )
