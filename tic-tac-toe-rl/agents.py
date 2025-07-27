@@ -2,9 +2,13 @@ import logging
 from dataclasses import dataclass
 from math import exp
 from random import choice, random
-from typing import Protocol
+from typing import Protocol, cast
 
-from egocentric import EgocentricBoard, canonicalize, remap_to_egocentric_board
+from egocentric import (
+    EgocentricBoard,
+    canonicalize_board_action,
+    remap_to_egocentric_board,
+)
 from tic_tac_toe import (
     Board,
     GameState,
@@ -117,14 +121,16 @@ class QAgent(Agent):
             return "".join([str(m) for m in ego_state] + [str(action)])
 
         ego_state: EgocentricBoard = remap_to_egocentric_board(state)
-        canonical_state: EgocentricBoard = canonicalize(ego_state)
-        canonical_state_action: str = _serialize_state_action(canonical_state, action)
+
+        canonical_state, canonical_action = canonicalize_board_action(ego_state, action)
+        canonical_state_action: str = _serialize_state_action(
+            cast(EgocentricBoard, canonical_state), canonical_action
+        )
 
         # NOTE: we only initialize the canonical q table entry because we
         #       will only ever set entries in the regular q table
         if canonical_state_action not in self._canonical_q_table:
             self._canonical_q_table[canonical_state_action] = 0.0
-            self._N[canonical_state_action] = 0
 
         return canonical_state_action, _serialize_state_action(ego_state, action)
 
@@ -185,8 +191,12 @@ class QAgent(Agent):
 
         # NOTE: We update learning rate as a function of how many times
         #       this state was visited & updated
+        if canonical_state_action_t not in self._N:
+            self._N[canonical_state_action_t] = 0
         self._N[canonical_state_action_t] += 1
+
         lr = 1.0 / self._N[canonical_state_action_t]
+        logger.debug(f"Using lr: {lr} for {canonical_state_action_t}")
         q_t = self._canonical_q_table[canonical_state_action_t]
 
         if game_state(state_t_next) != GameState.INCOMPLETE:
@@ -198,7 +208,7 @@ class QAgent(Agent):
         next_transition_qs: list[float] = []
         for action_next in available_plays(state_t_next):
             canonical_state_action_t_next, _ = self.serialize_state_action(
-                state=transition(board=state_t_next, idx=action_next),
+                state=state_t_next,
                 action=action_next,
             )
             next_transition_qs.append(
