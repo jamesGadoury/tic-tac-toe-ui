@@ -79,7 +79,6 @@ def _save_obj(obj: Any, path: Path):
 def save(
     q_agent: QAgent,
     episodes: list[EpisodeResults],
-    transitions: list[Transition],
     output_dir: Path,
     post_fix: str = "",
 ):
@@ -88,15 +87,11 @@ def save(
     )
     _save_obj(q_agent.q_table, output_dir / f"q_table_{post_fix}.json")
     _save_obj([asdict(r) for r in episodes], output_dir / f"episodes_{post_fix}.json")
-    _save_obj(
-        [asdict(t) for t in transitions], output_dir / f"transitions_{post_fix}.json"
-    )
 
 
 # TODO: break up script into focused scripts
-#  1. train from past sars transition pairs
-#  2. make dir structure more strongly typed somehow
-#  3. automatic analysis scripts
+#  1. make dir structure more strongly typed somehow
+#  2. automatic analysis scripts
 
 # TODO: probably should make this a package at this point lol
 
@@ -107,17 +102,21 @@ def play_episode(
     training: Marker,
     epsilon: float,
     learning_rate: float,
-) -> tuple[EpisodeResults, list[Transition]]:
+) -> EpisodeResults:
     agents = {Marker.FIRST_PLAYER: first_player, Marker.SECOND_PLAYER: second_player}
     board: Board = new_board()
     td_errors = []
-    transitions: list[Transition] = []
+    # NOTE: we need to track the last state and action pair that
+    #       the training agent executed so that we can make a
+    #       final update on terminal transition
+    last_training_s, last_training_a = None, None
     while True:
         marker = next_marker_to_place(board)
         action = agents[marker].get_action(state_t=board, epsilon=epsilon)
         next_board = transition(board, action)
         reward = reward_from_board_transition(next_board)
         if marker == training:
+            last_training_s, last_training_a = board, action
             td_error = agents[marker].update(
                 state_t=board,
                 reward=reward,
@@ -127,31 +126,36 @@ def play_episode(
             )
             td_errors.append(td_error)
 
-        transitions.append(
-            Transition(
-                state_t0=board, action=action, reward=reward, state_t1=next_board
-            )
-        )
-
-        board = next_board
-
         if game_state(board) != GameState.INCOMPLETE:
             # terminal
             final_reward = reward if marker == training else -reward
+            # TODO: impl logging
+            # print(f"{final_reward=}")
+
+            # NOTE: we always update the agent that is training on terminal move
+            assert last_training_s is not None
+            assert last_training_a is not None
+            td_error = agents[training].update(
+                state_t=last_training_s,
+                reward=final_reward,
+                action=last_training_a,
+                state_t_next=next_board,
+                learning_rate=learning_rate,
+            )
             break
+
+        board = next_board
 
     n = len(td_errors)
     abs_errors = [abs(e) for e in td_errors]
-    return (
-        EpisodeResults(
-            n_updates=n,
-            mean_td_error=sum(td_errors) / n,
-            mean_abs_td_error=sum(abs_errors) / n,
-            mean_squared_td_error=sum([e * e for e in td_errors]) / n,
-            max_abs_td_error=max(abs_errors),
-            final_reward=final_reward,
-        ),
-        transitions,
+    print(f"{abs_errors=}")
+    return EpisodeResults(
+        n_updates=n,
+        mean_td_error=sum(td_errors) / n,
+        mean_abs_td_error=sum(abs_errors) / n,
+        mean_squared_td_error=sum([e * e for e in td_errors]) / n,
+        max_abs_td_error=max(abs_errors),
+        final_reward=final_reward,
     )
 
 
@@ -237,6 +241,12 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
 
     try:
         for ep in tqdm(range(params.n_episodes)):
+            # TODO: change eps and lr to be tracked by training
+            #       agent so that they can decay them on every
+            #       one of their updates (not per episode).
+            #       Either make a TrainingAgent wrapper or
+            #       just move the logic to the QAgent and
+            #       remove eps and lr from relevant interfaces.
             epsilon = params.epsilon_min + (
                 params.epsilon_max - params.epsilon_min
             ) * exp(-params.epsilon_decay_rate * ep)
@@ -244,7 +254,7 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
                 params.learning_rate_max - params.learning_rate_min
             ) * exp(-params.learning_rate_decay_rate * ep)
 
-            episode_results, episode_transitions = play_episode(
+            episode_results = play_episode(
                 first_player=first_player,
                 second_player=second_player,
                 training=params.training,
@@ -253,7 +263,6 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
             )
 
             episodes.append(episode_results)
-            transitions += episode_transitions
 
             if ep % save_every_x_episodes == 0:
                 q_agent = (
@@ -265,13 +274,11 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
                 save(
                     q_agent=q_agent,
                     episodes=episodes,
-                    transitions=transitions,
                     output_dir=output_dir,
                     post_fix=str(ep),
                 )
                 # clear out list so that we don't run out of ram
                 episodes = []
-                transitions = []
     except KeyboardInterrupt as e:
         print("encountered keyboard interrupt, finalizing outputs")
     except Exception as e:
@@ -282,7 +289,6 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
     save(
         q_agent=q_agent,
         episodes=episodes,
-        transitions=transitions,
         output_dir=output_dir,
         post_fix=str(ep),
     )
