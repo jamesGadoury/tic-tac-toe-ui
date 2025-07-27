@@ -1,12 +1,32 @@
 from random import choice, random
+from typing import Protocol
 
 from egocentric import EgocentricBoard, canonicalize, remap_to_egocentric_board
 from tic_tac_toe import Board, GameState, available_plays, game_state, transition
 
+
+class Agent(Protocol):
+    def get_action(self, state_t: Board, epsilon: float) -> int: ...
+
+    def update(
+        self, state_t, reward, action, state_t_next, learning_rate
+    ) -> float | None: ...
+
+
+class RandomAgent(Agent):
+    def get_action(self, state_t: Board, epsilon: float) -> int:
+        return choice(available_plays(state_t))
+
+    def update(
+        self, state_t, reward, action, state_t_next, learning_rate
+    ) -> float | None:
+        return None
+
+
 QTable = dict[str, float]
 
 
-class QLearner:
+class QAgent(Agent):
     def __init__(self, frozen: bool = False):
         self._canonical_q_table: QTable = {}
         self._q_table: QTable = {}
@@ -15,8 +35,8 @@ class QLearner:
     @classmethod
     def load(
         cls, canonical_q_table: QTable, q_table: QTable, frozen: bool = False
-    ) -> "QLearner":
-        learner = QLearner(frozen=frozen)
+    ) -> "QAgent":
+        learner = QAgent(frozen=frozen)
         learner._canonical_q_table = canonical_q_table
         learner._q_table = q_table
         return learner
