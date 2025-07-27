@@ -71,6 +71,8 @@ def reward_from_board_transition(board: Board) -> float:
     return 0.0
 
 
+# TODO: update saving logic to use pandas & parquet (or feather) instead of json
+# TODO: update to make sure that ctrl+c always exits to save last set of artifacts (e.g. using a sigint_handler)
 def _save_obj(obj: Any, path: Path):
     with open(path, "w") as f:
         json.dump(obj, f)
