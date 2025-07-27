@@ -1,10 +1,13 @@
 import json
+import logging
+import traceback
 from argparse import ArgumentParser
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 from math import exp
 from pathlib import Path
 from random import choice, seed
+from sys import stderr
 from time import time_ns
 from typing import Any, Protocol
 
@@ -17,6 +20,7 @@ from tic_tac_toe import (
     game_state,
     new_board,
     next_marker_to_place,
+    pretty_format,
     transition,
 )
 from tqdm import tqdm
@@ -24,6 +28,29 @@ from tqdm import tqdm
 RANDOM_AGENT = "RANDOM_AGENT"
 FROZEN_Q_AGENT = "FROZEN_Q_AGENT"
 HUMAN_AGENT = "HUMAN_AGENT"
+
+logger = logging.getLogger(__name__)
+
+
+# TODO: move to a shared file so other scripts can use it (e.g. app_setup.py ?)
+def configure_logging(verbose: int, log_file: str | None):
+    # map count to levels: 0→WARNING, 1→INFO, 2+→DEBUG
+    level = {0: logging.WARNING, 1: logging.INFO}.get(verbose, logging.DEBUG)
+
+    # TODO: land on which fmt, consider switching to json based format
+    # fmt = "%(asctime)s %(levelname)-5s [%(name)s] %(message)s"
+    fmt = "[%(asctime)s %(levelname)-5s %(filename)s:%(lineno)d] %(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
+
+    handlers: list[logging.Handler] = []
+    # always log to console unless a file is forced?
+    handlers.append(logging.StreamHandler(stderr))
+
+    if log_file:
+        # append instead of overwrite; you can tweak mode="w" if you prefer
+        handlers.append(logging.FileHandler(log_file, mode="a"))
+
+    logging.basicConfig(level=level, format=fmt, datefmt=datefmt, handlers=handlers)
 
 
 @dataclass
@@ -113,6 +140,7 @@ def play_episode(
     #       final update on terminal transition
     last_training_s, last_training_a = None, None
     while True:
+        logger.debug(f"board at beginning of play: \n{pretty_format(board)}")
         marker = next_marker_to_place(board)
         action = agents[marker].get_action(state_t=board, epsilon=epsilon)
         next_board = transition(board, action)
@@ -128,22 +156,24 @@ def play_episode(
             )
             td_errors.append(td_error)
 
-        if game_state(board) != GameState.INCOMPLETE:
+        if game_state(next_board) != GameState.INCOMPLETE:
             # terminal
+            logger.debug("game is in terminal state")
             final_reward = reward if marker == training else -reward
             # TODO: impl logging
             # print(f"{final_reward=}")
 
-            # NOTE: we always update the agent that is training on terminal move
-            assert last_training_s is not None
-            assert last_training_a is not None
-            td_error = agents[training].update(
-                state_t=last_training_s,
-                reward=final_reward,
-                action=last_training_a,
-                state_t_next=next_board,
-                learning_rate=learning_rate,
-            )
+            if marker != training:
+                # NOTE: we always update the agent that is training on terminal move if it didn't update this play (e.g. did not make last move)
+                assert last_training_s is not None
+                assert last_training_a is not None
+                td_error = agents[training].update(
+                    state_t=last_training_s,
+                    reward=final_reward,
+                    action=last_training_a,
+                    state_t_next=next_board,
+                    learning_rate=learning_rate,
+                )
             break
 
         board = next_board
@@ -284,7 +314,9 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
     except KeyboardInterrupt as e:
         print("encountered keyboard interrupt, finalizing outputs")
     except Exception as e:
-        print(f"encountered unexpected exception {e}, finalizing outputs")
+        print(f"encountered unexpected exception {e}")
+        traceback.print_exc()
+        print("finalizing outputs...")
 
     q_agent = first_player if params.training == Marker.FIRST_PLAYER else second_player
     assert type(q_agent) is QAgent
@@ -356,7 +388,23 @@ if __name__ == "__main__":
         type=Path,
         default="./outputs",
     )
+    cli.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (use -vv for DEBUG)",
+    )
+    cli.add_argument(
+        "--log-file",
+        metavar="PATH",
+        help="Write logs to PATH instead of stderr",
+    )
     args = cli.parse_args()
+
+    configure_logging(args.verbose, args.log_file)
+
+    logger.debug("Debug logging is enabled")
 
     output_dir = args.output_dir / str(time_ns())
     output_dir.mkdir(parents=True)
