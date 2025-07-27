@@ -1,47 +1,48 @@
 import pytest
-from egocentric import EgocentricMarker, canonicalize, remap_to_egocentric_board
+from egocentric import (
+    FLIP_ACTION,
+    ROT90_ACTION,
+    EgocentricMarker,
+    canonicalize_board_action,
+    flip,
+    remap_to_egocentric_board,
+    rotate90,
+)
 from tic_tac_toe import Marker, new_board, next_marker_to_place, transition
+
+# ------------------ remap_to_egocentric_board tests ------------------
 
 
 def test_remap_empty_board_all_empty():
     b = new_board()
     e = remap_to_egocentric_board(b)
-    # should be a 9‐tuple of EMPTY
     assert isinstance(e, tuple)
     assert len(e) == 9
     assert all(cell is EgocentricMarker.EMPTY for cell in e)
 
 
 def test_remap_after_one_move_marks_opponent():
-    # first move is FIRST_PLAYER; next_marker is SECOND_PLAYER,
-    # so existing FIRST_PLAYER marks map to OPPONENT
     b0 = new_board()
     b1 = transition(b0, 3)
     assert next_marker_to_place(b1) is Marker.SECOND_PLAYER
     e = remap_to_egocentric_board(b1)
-    # index 3 was X → now OPPONENT
     assert e[3] is EgocentricMarker.OPPONENT
-    # all other cells remain EMPTY
-    for i in range(9):
+    for i, cell in enumerate(e):
         if i != 3:
-            assert e[i] is EgocentricMarker.EMPTY
+            assert cell is EgocentricMarker.EMPTY
 
 
 def test_remap_after_two_moves_alternates_agent_opponent():
-    # X at 0, O at 1 → next_marker is FIRST_PLAYER
     b = new_board()
     b = transition(b, 0)
     b = transition(b, 1)
     assert next_marker_to_place(b) is Marker.FIRST_PLAYER
     e = remap_to_egocentric_board(b)
-    # X cells (Marker.FIRST_PLAYER) become AGENT
     assert e[0] is EgocentricMarker.AGENT
-    # O cells (Marker.SECOND_PLAYER) become OPPONENT
     assert e[1] is EgocentricMarker.OPPONENT
-    # rest are EMPTY
-    for i in range(9):
+    for i, cell in enumerate(e):
         if i not in (0, 1):
-            assert e[i] is EgocentricMarker.EMPTY
+            assert cell is EgocentricMarker.EMPTY
 
 
 def test_remap_cache_returns_same_object():
@@ -49,91 +50,89 @@ def test_remap_cache_returns_same_object():
     b = transition(b, 4)
     e1 = remap_to_egocentric_board(b)
     e2 = remap_to_egocentric_board(b)
-    # @cache means the same tuple object is returned
     assert e1 is e2
 
 
+# -------------- symmetry mapping tests --------------
+
+
+def test_rotate90_mapping_consistency():
+    for idx in range(9):
+        one = [0] * 9
+        one[idx] = 1
+        rotated = rotate90(tuple(one))
+        new_idx = rotated.index(1)
+        assert ROT90_ACTION[idx] == new_idx
+
+
+def test_flip_mapping_consistency():
+    for idx in range(9):
+        one = [0] * 9
+        one[idx] = 1
+        flipped = flip(tuple(one))
+        new_idx = flipped.index(1)
+        assert FLIP_ACTION[idx] == new_idx
+
+
+# -------------- canonicalize_board_action tests --------------
+
+
 @pytest.fixture
-def sample_egocentric_board():
-    # create a non‐trivial egocentric board:
-    # AGENT at 2, OPPONENT at 5, rest EMPTY
-    eb = [EgocentricMarker.EMPTY] * 9
-    eb[2] = EgocentricMarker.AGENT
-    eb[5] = EgocentricMarker.OPPONENT
-    return tuple(eb)
+def sample_board_action():
+    board = [0] * 9
+    board[2] = 1
+    board[5] = 2
+    action = 7
+    return tuple(board), action
 
 
-def rotate90(s):
-    return (
-        s[6],
-        s[3],
-        s[0],
-        s[7],
-        s[4],
-        s[1],
-        s[8],
-        s[5],
-        s[2],
-    )
-
-
-def flip(s):
-    return (
-        s[2],
-        s[1],
-        s[0],
-        s[5],
-        s[4],
-        s[3],
-        s[8],
-        s[7],
-        s[6],
-    )
-
-
-def all_symmetries(s):
+def all_sym_board_actions(board, action):
     forms = []
-    cur = s
+    b_rot, a_rot = board, action
     for _ in range(4):
-        forms.append(cur)
-        forms.append(flip(cur))
-        cur = rotate90(cur)
+        forms.append((b_rot, a_rot))
+        b_flip = flip(b_rot)
+        a_flip = FLIP_ACTION[a_rot]
+        forms.append((b_flip, a_flip))
+        b_rot = rotate90(b_rot)
+        a_rot = ROT90_ACTION[a_rot]
     return forms
 
 
-def test_canonicalize_idempotent_and_cached(sample_egocentric_board):
-    eb = sample_egocentric_board
-    c1 = canonicalize(eb)
-    c2 = canonicalize(eb)
-    # idempotent and cached: same object
+def test_canonicalize_board_action_idempotent_and_cached(sample_board_action):
+    board, action = sample_board_action
+    c1 = canonicalize_board_action(board, action)
+    c2 = canonicalize_board_action(board, action)
     assert c1 == c2
     assert c1 is c2
 
 
-def test_canonicalize_chooses_lexicographic_minimum(sample_egocentric_board):
-    eb = sample_egocentric_board
-    forms = all_symmetries(eb)
+def test_canonicalize_board_action_lexico_minimum(sample_board_action):
+    board, action = sample_board_action
+    forms = all_sym_board_actions(board, action)
     expected = min(forms)
-    got = canonicalize(eb)
+    got = canonicalize_board_action(board, action)
     assert got == expected
 
 
-def test_canonicalize_invariant_under_rotations_and_flips(sample_egocentric_board):
-    eb = sample_egocentric_board
-    base = canonicalize(eb)
-    for form in all_symmetries(eb):
-        assert canonicalize(form) == base
+def test_canonicalize_invariant_under_symmetries(sample_board_action):
+    board, action = sample_board_action
+    base = canonicalize_board_action(board, action)
+    for b_test, a_test in all_sym_board_actions(board, action):
+        assert canonicalize_board_action(b_test, a_test) == base
 
 
-def test_canonicalize_on_all_empty_board():
-    eb = tuple(EgocentricMarker.EMPTY for _ in range(9))
-    c = canonicalize(eb)
-    # all symmetries are identical, so canonical is just all‐empty
-    assert c == eb
-
-
-def test_canonicalize_on_full_agent_board():
-    eb = tuple(EgocentricMarker.AGENT for _ in range(9))
-    c = canonicalize(eb)
-    # no variation across symmetries
-    assert c == eb
+def test_canonicalize_on_empty_board_any_action():
+    board = tuple(0 for _ in range(9))
+    for action in range(9):
+        canon_b, canon_a = canonicalize_board_action(board, action)
+        # Board stays the same
+        assert canon_b == board
+        # Action should be the minimum over its symmetry orbit
+        orbit = []
+        a_rot = action
+        for _ in range(4):
+            orbit.append(a_rot)
+            orbit.append(FLIP_ACTION[a_rot])
+            a_rot = ROT90_ACTION[a_rot]
+        assert canon_a == min(orbit)
