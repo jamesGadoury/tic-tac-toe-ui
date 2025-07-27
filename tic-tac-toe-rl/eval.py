@@ -50,7 +50,7 @@ def eval(n_episodes: int, agents: dict[Marker, Agent]) -> list[float]:
         board: Board = new_board()
         while True:
             marker = next_marker_to_place(board)
-            action = agents[marker].get_action(state_t=board, epsilon=0.0)
+            action = agents[marker].get_action(state_t=board)
             board = transition(board, action)
             reward = reward_from_board_transition(board)
 

@@ -11,7 +11,7 @@ from sys import stderr
 from time import time_ns
 from typing import Any, Protocol
 
-from agents import Agent, HumanAgent, QAgent, RandomAgent
+from agents import Agent, EpsilonStrategy, HumanAgent, QAgent, RandomAgent
 from tic_tac_toe import (
     Board,
     GameState,
@@ -60,9 +60,6 @@ class TrainingParams:
     pretrained_dir: str | None
     opponent_pretrained_dir: str | None
     seed: float
-    learning_rate_max: float
-    learning_rate_min: float
-    learning_rate_decay_rate: float
     epsilon_max: float
     epsilon_min: float
     epsilon_decay_rate: float
@@ -131,11 +128,8 @@ def play_episode(
     second_player: Agent,
     training: Marker,
     epsilon: float,
-    learning_rate: float,
 ) -> EpisodeResults:
-    logger.debug(
-        f"\n{first_player=}\n{second_player=}\n{training=}\n{epsilon=}\n{learning_rate=}"
-    )
+    logger.debug(f"\n{first_player=}\n{second_player=}\n{training=}\n{epsilon=}")
     agents = {Marker.FIRST_PLAYER: first_player, Marker.SECOND_PLAYER: second_player}
     board: Board = new_board()
     td_errors = []
@@ -146,7 +140,7 @@ def play_episode(
     while True:
         logger.debug(f"board at beginning of play: \n{pretty_format(board)}")
         marker = next_marker_to_place(board)
-        action = agents[marker].get_action(state_t=board, epsilon=epsilon)
+        action = agents[marker].get_action(state_t=board)
         next_board = transition(board, action)
         reward = reward_from_board_transition(next_board)
         logger.debug(
@@ -159,7 +153,6 @@ def play_episode(
                 reward=reward,
                 action=action,
                 state_t_next=next_board,
-                learning_rate=learning_rate,
             )
             td_errors.append(td_error)
 
@@ -179,7 +172,6 @@ def play_episode(
                     reward=final_reward,
                     action=last_training_a,
                     state_t_next=next_board,
-                    learning_rate=learning_rate,
                 )
                 td_errors.append(td_error)
             break
@@ -215,7 +207,11 @@ def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | No
     return most_recent
 
 
-def load_q_agent(pretrained_dir: Path, frozen: bool = False) -> QAgent:
+def load_q_agent(
+    pretrained_dir: Path,
+    epsilon_strategy: EpsilonStrategy | None = None,
+    frozen: bool = False,
+) -> QAgent:
     assert pretrained_dir is not None
 
     # NOTE: very hacky, have to search for canonical first because q_table will match both canonical and regular q tables
@@ -234,7 +230,10 @@ def load_q_agent(pretrained_dir: Path, frozen: bool = False) -> QAgent:
     logger.info(f"Loaded {q_table_pth}")
 
     return QAgent.load(
-        canonical_q_table=canonical_q_table, q_table=q_table, frozen=frozen
+        canonical_q_table=canonical_q_table,
+        q_table=q_table,
+        epsilon_strategy=epsilon_strategy,
+        frozen=frozen,
     )
 
 
@@ -245,10 +244,16 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
 
     _save_obj(asdict(params), output_dir / f"training_params.json")
 
+    epsilon_strategy = EpsilonStrategy(
+        eps_min=params.epsilon_min,
+        eps_max=params.epsilon_max,
+        decay_rate=params.epsilon_decay_rate,
+    )
+
     q_agent = (
-        load_q_agent(Path(params.pretrained_dir))
+        load_q_agent(Path(params.pretrained_dir), epsilon_strategy=epsilon_strategy)
         if params.pretrained_dir is not None
-        else QAgent()
+        else QAgent(epsilon_strategy=epsilon_strategy)
     )
     opponent = (
         RandomAgent()
@@ -294,16 +299,12 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
             epsilon = params.epsilon_min + (
                 params.epsilon_max - params.epsilon_min
             ) * exp(-params.epsilon_decay_rate * ep)
-            learning_rate = params.learning_rate_min + (
-                params.learning_rate_max - params.learning_rate_min
-            ) * exp(-params.learning_rate_decay_rate * ep)
 
             episode_results = play_episode(
                 first_player=first_player,
                 second_player=second_player,
                 training=params.training,
                 epsilon=epsilon,
-                learning_rate=learning_rate,
             )
 
             episodes.append(episode_results)
@@ -353,18 +354,6 @@ if __name__ == "__main__":
         type=str,
     )
     cli.add_argument("--seed", help="random seed", type=int, default=42)
-    cli.add_argument(
-        "--learning-rate-max", help="max learning rate", type=float, default=0.5
-    )
-    cli.add_argument(
-        "--learning-rate-min", help="min learning rate", type=float, default=0.01
-    )
-    cli.add_argument(
-        "--learning-rate-decay-rate",
-        help="decay rate for learning rate",
-        type=float,
-        default=0.99,
-    )
     cli.add_argument(
         "--epsilon-max", help="max probability of exploration", type=float, default=1.0
     )
@@ -434,9 +423,6 @@ if __name__ == "__main__":
             pretrained_dir=args.pretrained_dir,
             opponent_pretrained_dir=args.opponent_pretrained_dir,
             seed=args.seed,
-            learning_rate_max=args.learning_rate_max,
-            learning_rate_min=args.learning_rate_min,
-            learning_rate_decay_rate=args.learning_rate_decay_rate,
             epsilon_max=args.epsilon_max,
             epsilon_min=args.epsilon_min,
             epsilon_decay_rate=args.epsilon_decay_rate,

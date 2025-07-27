@@ -1,3 +1,6 @@
+import logging
+from dataclasses import dataclass
+from math import exp
 from random import choice, random
 from typing import Protocol
 
@@ -11,27 +14,25 @@ from tic_tac_toe import (
     transition,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class Agent(Protocol):
-    def get_action(self, state_t: Board, epsilon: float) -> int: ...
+    def get_action(self, state_t: Board) -> int: ...
 
-    def update(
-        self, state_t, reward, action, state_t_next, learning_rate
-    ) -> float | None: ...
+    def update(self, state_t, reward, action, state_t_next) -> float | None: ...
 
 
 class RandomAgent(Agent):
-    def get_action(self, state_t: Board, epsilon: float) -> int:
+    def get_action(self, state_t: Board) -> int:
         return choice(available_plays(state_t))
 
-    def update(
-        self, state_t, reward, action, state_t_next, learning_rate
-    ) -> float | None:
+    def update(self, state_t, reward, action, state_t_next) -> float | None:
         return None
 
 
 class HumanAgent(Agent):
-    def get_action(self, state_t: Board, epsilon: float) -> int:
+    def get_action(self, state_t: Board) -> int:
         available_plays_t = available_plays(state_t)
 
         def _pretty_format_available_plays():
@@ -59,27 +60,44 @@ class HumanAgent(Agent):
             play = int(input())
         return play
 
-    def update(
-        self, state_t, reward, action, state_t_next, learning_rate
-    ) -> float | None:
+    def update(self, state_t, reward, action, state_t_next) -> float | None:
         return None
 
 
 QTable = dict[str, float]
 
 
+@dataclass
+class EpsilonStrategy:
+    eps_min: float
+    eps_max: float
+    decay_rate: float
+
+
 class QAgent(Agent):
-    def __init__(self, frozen: bool = False):
+    def __init__(
+        self, epsilon_strategy: EpsilonStrategy | None = None, frozen: bool = False
+    ):
         self._canonical_q_table: QTable = {}
         self._q_table: QTable = {}
         self._frozen: bool = frozen
         self._N: dict[str, int] = {}
+        self._epsilon_strategy = epsilon_strategy
+        self._steps = 0
+
+        logger.debug(f"{self._frozen=}")
+        logger.debug(f"{self._epsilon_strategy=}")
 
     @classmethod
     def load(
-        cls, canonical_q_table: QTable, q_table: QTable, frozen: bool = False
+        cls,
+        canonical_q_table: QTable,
+        q_table: QTable,
+        epsilon_strategy: EpsilonStrategy | None = None,
+        frozen: bool = False,
     ) -> "QAgent":
-        learner = QAgent(frozen=frozen)
+        # TODO: should frozen have epsilon_strategy? should it ever not move greedy
+        learner = QAgent(epsilon_strategy=epsilon_strategy, frozen=frozen)
         learner._canonical_q_table = canonical_q_table
         learner._q_table = q_table
         return learner
@@ -110,8 +128,16 @@ class QAgent(Agent):
 
         return canonical_state_action, _serialize_state_action(ego_state, action)
 
-    def get_action(self, state_t: Board, epsilon: float = 0.0) -> int:
-        if random() < epsilon:
+    def get_action(self, state_t: Board) -> int:
+        self._steps += 1
+        self._epsilon = (
+            0.0
+            if self._epsilon_strategy is None
+            else self._epsilon_strategy.eps_min
+            + (self._epsilon_strategy.eps_max - self._epsilon_strategy.eps_min)
+            * exp(-self._steps / self._epsilon_strategy.decay_rate)
+        )
+        if random() < self._epsilon:
             # explore
             return choice(available_plays(state_t))
 
@@ -144,7 +170,6 @@ class QAgent(Agent):
         reward: float,
         action: int,
         state_t_next: Board,
-        learning_rate: float,
         discount_factor: float = 1.0,
     ) -> float | None:
         """Updates tables and returns td error
@@ -157,8 +182,10 @@ class QAgent(Agent):
         canonical_state_action_t, _ = self.serialize_state_action(
             state=state_t, action=action
         )
+
+        # NOTE: We update learning rate as a function of how many times
+        #       this state was visited & updated
         self._N[canonical_state_action_t] += 1
-        # TODO: remove / update learning rate interface
         lr = 1.0 / self._N[canonical_state_action_t]
         q_t = self._canonical_q_table[canonical_state_action_t]
 
