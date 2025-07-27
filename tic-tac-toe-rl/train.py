@@ -94,17 +94,9 @@ def save(
 
 
 # TODO: break up script into focused scripts
-#  1. self play (with one player frozen)
-#  2. random player
-#  3. train from past sars transition pairs
-#  4. make dir structure more strongly typed somehow
-#  5. update all scripts so that we can dynamically load
-#     artifacts (e.g. tables) to build training off of
-#  6. automatic analysis scripts
-#  7. collect training details that show a "trail"
-#     e.g. train x -> dir 1, load dir 1 and train y -> dir 2, etc
-#     then in whatever dir n, can track back to past dirs and
-#     training stats
+#  1. train from past sars transition pairs
+#  2. make dir structure more strongly typed somehow
+#  3. automatic analysis scripts
 
 # TODO: probably should make this a package at this point lol
 
@@ -163,14 +155,6 @@ def play_episode(
     )
 
 
-def setup_random_play(params: TrainingParams):
-    first_player = QAgent() if params.training == Marker.FIRST_PLAYER else RandomAgent()
-    second_player = (
-        QAgent() if params.training == Marker.SECOND_PLAYER else RandomAgent()
-    )
-    return first_player, second_player
-
-
 def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | None:
     """
     Search recursively in `directory` for files whose name contains `substring`
@@ -187,13 +171,12 @@ def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | No
     return most_recent
 
 
-# TODO: not loading table if doing self play against random lol
-def setup_self_play(params: TrainingParams):
-    assert params.pretrained_dir is not None
+def load_q_agent(pretrained_dir: Path) -> QAgent:
+    assert pretrained_dir is not None
 
     # NOTE: very hacky, have to search for canonical first because q_table will match both canonical and regular q tables
     canonical_q_table_pth = find_most_recent_file_with_substring(
-        dir=Path(params.pretrained_dir), substring="canonical_q_table"
+        dir=Path(pretrained_dir), substring="canonical_q_table"
     )
     assert canonical_q_table_pth is not None
     q_table_pth = canonical_q_table_pth.with_name(
@@ -206,30 +189,7 @@ def setup_self_play(params: TrainingParams):
     print(f"Loaded {canonical_q_table_pth}")
     print(f"Loaded {q_table_pth}")
 
-    unfrozen_agent = QAgent.load(
-        canonical_q_table=canonical_q_table, q_table=q_table, frozen=False
-    )
-    frozen_agent = QAgent.load(
-        canonical_q_table=canonical_q_table, q_table=q_table, frozen=True
-    )
-    first_player = (
-        unfrozen_agent if params.training == Marker.FIRST_PLAYER else frozen_agent
-    )
-    second_player = (
-        unfrozen_agent if params.training == Marker.SECOND_PLAYER else frozen_agent
-    )
-
-    assert first_player is not second_player
-    return first_player, second_player
-
-
-def setup_human_play(params: TrainingParams) -> tuple[Agent, Agent]:
-    # TODO: link in setting up the qagent from pretrained
-    first_player = QAgent() if params.training == Marker.FIRST_PLAYER else HumanAgent()
-    second_player = (
-        QAgent() if params.training == Marker.SECOND_PLAYER else HumanAgent()
-    )
-    return first_player, second_player
+    return QAgent.load(canonical_q_table=canonical_q_table, q_table=q_table)
 
 
 def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir: Path):
@@ -239,13 +199,35 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
 
     _save_obj(asdict(params), output_dir / f"training_params.json")
 
-    first_player, second_player = (
-        setup_self_play(params)
-        if params.opponent == FROZEN_Q_AGENT
+    q_agent = (
+        load_q_agent(Path(params.pretrained_dir))
+        if params.pretrained_dir is not None
+        else QAgent()
+    )
+
+    opponent = (
+        RandomAgent()
+        if params.opponent == RANDOM_AGENT
         else (
-            setup_random_play(params)
-            if params.opponent == RANDOM_AGENT
-            else setup_human_play(params)
+            QAgent.load(
+                canonical_q_table=q_agent.canonical_q_table,
+                q_table=q_agent.q_table,
+                frozen=True,
+            )
+            if params.opponent == FROZEN_Q_AGENT
+            else HumanAgent()
+        )
+    )
+
+    first_player, second_player = (
+        (
+            q_agent,
+            opponent,
+        )
+        if params.training == Marker.FIRST_PLAYER
+        else (
+            opponent,
+            q_agent,
         )
     )
 
