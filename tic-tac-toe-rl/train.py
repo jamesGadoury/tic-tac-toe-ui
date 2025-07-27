@@ -132,6 +132,9 @@ def play_episode(
     epsilon: float,
     learning_rate: float,
 ) -> EpisodeResults:
+    logger.debug(
+        f"\n{first_player=}\n{second_player=}\n{training=}\n{epsilon=}\n{learning_rate=}"
+    )
     agents = {Marker.FIRST_PLAYER: first_player, Marker.SECOND_PLAYER: second_player}
     board: Board = new_board()
     td_errors = []
@@ -174,6 +177,7 @@ def play_episode(
                     state_t_next=next_board,
                     learning_rate=learning_rate,
                 )
+                td_errors.append(td_error)
             break
 
         board = next_board
