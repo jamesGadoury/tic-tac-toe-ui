@@ -1,8 +1,11 @@
+import logging
 from enum import IntEnum
 from functools import cache
 from typing import cast
 
 from tic_tac_toe import Board, Marker, next_marker_to_place
+
+logger = logging.getLogger(__name__)
 
 
 class EgocentricMarker(IntEnum):
@@ -25,7 +28,7 @@ EgocentricBoard = tuple[
 
 
 @cache
-def remap_to_egocentric_board(board: Board) -> EgocentricBoard:
+def remap_to_egocentric_board(board: Board, marker: Marker) -> EgocentricBoard:
     """Transforms the board to agent's perspective.
 
     This is helpful if you want the agent to play both/either
@@ -50,7 +53,6 @@ def remap_to_egocentric_board(board: Board) -> EgocentricBoard:
     Mainly this is done for consistency when running a policy
     developed in this environment outside of this environment.
     """
-    next_marker = next_marker_to_place(board)
     return cast(
         EgocentricBoard,
         tuple(
@@ -58,9 +60,7 @@ def remap_to_egocentric_board(board: Board) -> EgocentricBoard:
                 EgocentricMarker.EMPTY
                 if m == Marker.EMPTY
                 else (
-                    EgocentricMarker.AGENT
-                    if m == next_marker
-                    else EgocentricMarker.OPPONENT
+                    EgocentricMarker.AGENT if m == marker else EgocentricMarker.OPPONENT
                 )
             )
             for m in board

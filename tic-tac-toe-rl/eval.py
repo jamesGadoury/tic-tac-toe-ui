@@ -23,7 +23,7 @@ from tqdm import tqdm
 from train import find_most_recent_file_with_substring, reward_from_board_transition
 
 
-def load_q_agent(dir: Path) -> QAgent:
+def load_q_agent(dir: Path, marker: Marker) -> QAgent:
     # NOTE: very hacky, have to search for canonical first because q_table will match both canonical and regular q tables
     canonical_q_table_pth = find_most_recent_file_with_substring(
         dir=Path(dir), substring="canonical_q_table"
@@ -40,7 +40,10 @@ def load_q_agent(dir: Path) -> QAgent:
     print(f"Loaded {q_table_pth}")
 
     return QAgent.load(
-        canonical_q_table=canonical_q_table, q_table=q_table, frozen=False
+        canonical_q_table=canonical_q_table,
+        q_table=q_table,
+        marker=marker,
+        frozen=False,
     )
 
 
@@ -78,11 +81,11 @@ def output_results(rewards: list[float]):
 def main(n_episodes: int, pretrained_dir: Path, random_seed: int):
     seed(random_seed)
 
-    q_agent = load_q_agent(pretrained_dir)
     random_agent = RandomAgent()
 
     # Decide which Marker is Q‑agent
     q_marker = Marker.FIRST_PLAYER  # when testing as first…
+    q_agent = load_q_agent(pretrained_dir, marker=q_marker)
     print("Q Agent as first player:")
     output_results(
         eval(
@@ -93,6 +96,7 @@ def main(n_episodes: int, pretrained_dir: Path, random_seed: int):
     )
 
     q_marker = Marker.SECOND_PLAYER  # when testing as second
+    q_agent._marker = q_marker
     print("Q Agent as second player:")
     output_results(
         eval(

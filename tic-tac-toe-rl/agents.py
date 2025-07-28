@@ -12,6 +12,7 @@ from egocentric import (
 from tic_tac_toe import (
     Board,
     GameState,
+    Marker,
     available_plays,
     game_state,
     pretty_format,
@@ -80,12 +81,16 @@ class EpsilonStrategy:
 
 class QAgent(Agent):
     def __init__(
-        self, epsilon_strategy: EpsilonStrategy | None = None, frozen: bool = False
+        self,
+        marker: Marker,
+        epsilon_strategy: EpsilonStrategy | None = None,
+        frozen: bool = False,
     ):
         self._canonical_q_table: QTable = {}
         self._q_table: QTable = {}
         self._frozen: bool = frozen
         self._N: dict[str, int] = {}
+        self._marker: Marker = marker
         self._epsilon_strategy = epsilon_strategy
         self._steps = 0
 
@@ -97,11 +102,14 @@ class QAgent(Agent):
         cls,
         canonical_q_table: QTable,
         q_table: QTable,
+        marker: Marker,
         epsilon_strategy: EpsilonStrategy | None = None,
         frozen: bool = False,
     ) -> "QAgent":
         # TODO: should frozen have epsilon_strategy? should it ever not move greedy
-        learner = QAgent(epsilon_strategy=epsilon_strategy, frozen=frozen)
+        learner = QAgent(
+            marker=marker, epsilon_strategy=epsilon_strategy, frozen=frozen
+        )
         learner._canonical_q_table = canonical_q_table
         learner._q_table = q_table
         return learner
@@ -120,19 +128,26 @@ class QAgent(Agent):
         def _serialize_state_action(ego_state: EgocentricBoard, action: int):
             return "".join([str(m) for m in ego_state] + [str(action)])
 
-        ego_state: EgocentricBoard = remap_to_egocentric_board(state)
+        ego_state: EgocentricBoard = remap_to_egocentric_board(
+            state, marker=self._marker
+        )
+        logger.debug(f"{ego_state=}")
 
         canonical_state, canonical_action = canonicalize_board_action(ego_state, action)
         canonical_state_action: str = _serialize_state_action(
             cast(EgocentricBoard, canonical_state), canonical_action
         )
 
+        logger.debug(f"{canonical_state_action=}")
+        state_action = _serialize_state_action(ego_state, action)
+        logger.debug(f"{state_action=}")
+
         # NOTE: we only initialize the canonical q table entry because we
         #       will only ever set entries in the regular q table
         if canonical_state_action not in self._canonical_q_table:
             self._canonical_q_table[canonical_state_action] = 0.0
 
-        return canonical_state_action, _serialize_state_action(ego_state, action)
+        return canonical_state_action, state_action
 
     def get_action(self, state_t: Board) -> int:
         self._steps += 1
@@ -185,6 +200,9 @@ class QAgent(Agent):
         if self._frozen:
             return None
 
+        logger.debug(
+            f"state_t:\n{pretty_format(state_t)}\nstate_t_next:\n{pretty_format(state_t_next)}"
+        )
         canonical_state_action_t, _ = self.serialize_state_action(
             state=state_t, action=action
         )

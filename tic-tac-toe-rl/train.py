@@ -209,6 +209,7 @@ def find_most_recent_file_with_substring(dir: Path, substring: str) -> Path | No
 
 def load_q_agent(
     pretrained_dir: Path,
+    marker: Marker,
     epsilon_strategy: EpsilonStrategy | None = None,
     frozen: bool = False,
 ) -> QAgent:
@@ -231,6 +232,7 @@ def load_q_agent(
 
     return QAgent.load(
         canonical_q_table=canonical_q_table,
+        marker=marker,
         q_table=q_table,
         epsilon_strategy=epsilon_strategy,
         frozen=frozen,
@@ -251,9 +253,13 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
     )
 
     q_agent = (
-        load_q_agent(Path(params.pretrained_dir), epsilon_strategy=epsilon_strategy)
+        load_q_agent(
+            Path(params.pretrained_dir),
+            marker=params.training,
+            epsilon_strategy=epsilon_strategy,
+        )
         if params.pretrained_dir is not None
-        else QAgent(epsilon_strategy=epsilon_strategy)
+        else QAgent(marker=params.training, epsilon_strategy=epsilon_strategy)
     )
     opponent = (
         RandomAgent()
@@ -263,10 +269,23 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
                 QAgent.load(
                     canonical_q_table=q_agent.canonical_q_table,
                     q_table=q_agent.q_table,
+                    marker=(
+                        Marker.FIRST_PLAYER
+                        if params.training != Marker.FIRST_PLAYER
+                        else Marker.SECOND_PLAYER
+                    ),
                     frozen=True,
                 )
                 if params.opponent_pretrained_dir is None
-                else load_q_agent(Path(params.opponent_pretrained_dir), frozen=True)
+                else load_q_agent(
+                    Path(params.opponent_pretrained_dir),
+                    marker=(
+                        Marker.FIRST_PLAYER
+                        if params.training != Marker.FIRST_PLAYER
+                        else Marker.SECOND_PLAYER
+                    ),
+                    frozen=True,
+                )
             )
             if params.opponent == FROZEN_Q_AGENT
             else HumanAgent()
@@ -339,6 +358,8 @@ def training_loop(params: TrainingParams, save_every_x_episodes: int, output_dir
         output_dir=output_dir,
         post_fix=str(ep),
     )
+
+    print(f"All files saved to {output_dir}")
 
 
 if __name__ == "__main__":

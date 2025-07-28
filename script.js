@@ -47,6 +47,7 @@ class QAgent {
         if (key in this.#qTable) {
             return this.#qTable[key];
         }
+
         return 0.0;
     }
 
@@ -55,9 +56,7 @@ class QAgent {
         //       for non empty cells which will then get dropped by the flatten operation
         const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
         const estimatedValues = emptyCellsIndices.map(idx => {
-            const possibleBoard = [...board];
-            possibleBoard[idx] = COMPUTER;
-            return this.getValue(possibleBoard, idx);
+            return this.getValue(board, idx);
         });
         const maxEstimatedValue = Math.max(...estimatedValues);
         const bestSlot = estimatedValues.findIndex(v => v === maxEstimatedValue);
