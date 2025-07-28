@@ -1,9 +1,9 @@
 import logging
 
 import pytest
-from tic_tac_toe import (
-    _WINNING_GAME_COMBOS,
-    Board,
+
+from tic_tac_toe_rl import (
+    WINNING_GAME_COMBOS,
     GameState,
     Marker,
     available_plays,
@@ -149,7 +149,7 @@ def test_tied_board_detection():
     assert game_state(b) == GameState.TIED
 
 
-@pytest.mark.parametrize("combo", _WINNING_GAME_COMBOS)
+@pytest.mark.parametrize("combo", WINNING_GAME_COMBOS)
 def test_first_player_win_via_game_state(combo):
     # Plan moves so FIRST_PLAYER plays at positions 0,2,4 in seq:
     free = [i for i in range(9) if i not in combo]
@@ -167,7 +167,7 @@ def test_first_player_win_via_game_state(combo):
     assert game_state(b) == GameState.FIRST_PLAYER_WON
 
 
-@pytest.mark.parametrize("combo", _WINNING_GAME_COMBOS)
+@pytest.mark.parametrize("combo", WINNING_GAME_COMBOS)
 def test_second_player_win_via_game_state(combo):
     # Plan moves so SECOND_PLAYER plays at positions 1,3,5 in seq:
     #   [F1, combo[0], F2, combo[1], F3, combo[2]]
@@ -177,7 +177,7 @@ def test_second_player_win_via_game_state(combo):
         F1,
         F2,
         F3,
-    ) in _WINNING_GAME_COMBOS:
+    ) in WINNING_GAME_COMBOS:
         F3 = free[3]
 
     seq = [F1, combo[0], F2, combo[1], F3, combo[2]]

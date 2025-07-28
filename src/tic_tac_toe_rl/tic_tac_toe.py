@@ -124,7 +124,7 @@ def second_player_won(board: Board) -> bool:
     return winning_player_marker == Marker.SECOND_PLAYER
 
 
-_WINNING_GAME_COMBOS = (
+WINNING_GAME_COMBOS = (
     (0, 1, 2),
     (3, 4, 5),
     (6, 7, 8),
@@ -138,7 +138,7 @@ _WINNING_GAME_COMBOS = (
 
 @cache
 def _find_winning_player_marker(board: Board) -> Marker | None:
-    for combo in _WINNING_GAME_COMBOS:
+    for combo in WINNING_GAME_COMBOS:
         line = tuple(board[idx] for idx in combo)
 
         if len(set(line)) == 1 and line[0] != Marker.EMPTY:
