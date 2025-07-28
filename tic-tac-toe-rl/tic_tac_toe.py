@@ -92,10 +92,13 @@ class GameState(IntEnum):
 @cache
 def game_state(board: Board) -> GameState:
     if is_tied(board):
+        logger.debug("is_tied")
         return GameState.TIED
     if first_player_won(board):
+        logger.debug("first_player_won")
         return GameState.FIRST_PLAYER_WON
     if second_player_won(board):
+        logger.debug("second_player_won")
         return GameState.SECOND_PLAYER_WON
     return GameState.INCOMPLETE
 
@@ -108,7 +111,6 @@ def is_tied(board: Board) -> bool:
 @cache
 def first_player_won(board: Board) -> bool:
     winning_player_marker = _find_winning_player_marker(board)
-    logger.debug(f"{winning_player_marker=}")
     if winning_player_marker is None:
         return False
     return winning_player_marker == Marker.FIRST_PLAYER

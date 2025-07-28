@@ -44,18 +44,20 @@ def load_q_agent(dir: Path) -> QAgent:
     )
 
 
-def eval(n_episodes: int, agents: dict[Marker, Agent]) -> list[float]:
+def eval(n_episodes: int, agents: dict[Marker, Agent], q_marker: Marker) -> list[float]:
     rewards = []
-    for ep in tqdm(range(n_episodes)):
-        board: Board = new_board()
+    for _ in range(n_episodes):
+        board = new_board()
         while True:
             marker = next_marker_to_place(board)
-            action = agents[marker].get_action(state_t=board, epsilon=0.0)
+            action = agents[marker].get_action(state_t=board)
             board = transition(board, action)
             reward = reward_from_board_transition(board)
 
             if game_state(board) != GameState.INCOMPLETE:
-                rewards.append(reward if marker == Marker.FIRST_PLAYER else -reward)
+                # Now reward is always from the perspective of the mover,
+                # so flip it unless that mover was the Q‑agent:
+                rewards.append(reward if marker == q_marker else -reward)
                 break
     return rewards
 
@@ -79,19 +81,24 @@ def main(n_episodes: int, pretrained_dir: Path, random_seed: int):
     q_agent = load_q_agent(pretrained_dir)
     random_agent = RandomAgent()
 
+    # Decide which Marker is Q‑agent
+    q_marker = Marker.FIRST_PLAYER  # when testing as first…
     print("Q Agent as first player:")
     output_results(
         eval(
             n_episodes=n_episodes,
             agents={Marker.FIRST_PLAYER: q_agent, Marker.SECOND_PLAYER: random_agent},
+            q_marker=q_marker,  # pass it in
         )
     )
 
+    q_marker = Marker.SECOND_PLAYER  # when testing as second
     print("Q Agent as second player:")
     output_results(
         eval(
             n_episodes=n_episodes,
             agents={Marker.FIRST_PLAYER: random_agent, Marker.SECOND_PLAYER: q_agent},
+            q_marker=q_marker,  # and here
         )
     )
 
