@@ -71,14 +71,6 @@ class TrainingParams:
 
 
 @dataclass
-class Transition:
-    state_t0: Board
-    action: int
-    reward: float
-    state_t1: Board
-
-
-@dataclass
 class EpisodeResults:
     n_updates: int
     mean_td_error: float
