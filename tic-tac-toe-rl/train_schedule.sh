@@ -27,7 +27,7 @@ run_phase() {
 
 # 1) First player vs random
 run_phase first_vs_random \
-  --n-episodes 1000000 \
+  --n-episodes 2000000 \
   --training 1 \
   --opponent RANDOM_AGENT \
   --epsilon-max 1.0 \
@@ -36,7 +36,7 @@ run_phase first_vs_random \
 
 # 2) Long second vs random (boost coverage)
 run_phase second_vs_random_long \
-  --n-episodes 2000000 \
+  --n-episodes 4000000 \
   --training 2 \
   --opponent RANDOM_AGENT \
   --epsilon-max 1.0 \
@@ -45,7 +45,7 @@ run_phase second_vs_random_long \
 
 # 3) Tight epsilon second vs random (fine-tune)
 run_phase second_vs_random_tight \
-  --n-episodes 1000000 \
+  --n-episodes 2000000 \
   --training 2 \
   --opponent RANDOM_AGENT \
   --epsilon-max 1.0 \
@@ -54,7 +54,7 @@ run_phase second_vs_random_tight \
 
 # 4) Self-play first vs frozen-second
 run_phase selfplay_first \
-  --n-episodes 2000000 \
+  --n-episodes 4000000 \
   --training 1 \
   --opponent FROZEN_Q_AGENT \
   --opponent-pretrained-dir "$PREV" \
@@ -64,7 +64,7 @@ run_phase selfplay_first \
 
 # 5) Extended self-play second vs frozen-first
 run_phase selfplay_second_long \
-  --n-episodes 3000000 \
+  --n-episodes 6000000 \
   --training 2 \
   --opponent FROZEN_Q_AGENT \
   --opponent-pretrained-dir "$PREV" \
@@ -74,7 +74,7 @@ run_phase selfplay_second_long \
 
 # 6) Final polish: short second vs random with minimal exploration
 run_phase second_vs_random_final \
-  --n-episodes 500000 \
+  --n-episodes 1000000 \
   --training 2 \
   --opponent RANDOM_AGENT \
   --epsilon-max 0.2 \
