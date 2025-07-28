@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from time import time_ns
 
-from train import find_most_recent_file_with_substring, load_q_agent
+from train import load_q_agent
 
 
 def copy_q_tables(qtable1, qtable2) -> dict:
@@ -18,6 +18,7 @@ def copy_q_tables(qtable1, qtable2) -> dict:
     return qtable
 
 
+# TODO: fix when I cleanup marker interface
 def main(dir1: Path, dir2: Path, outdir: Path):
     t = time_ns()
     outdir = outdir / f"merge_{t}"

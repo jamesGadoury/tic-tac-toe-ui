@@ -3,7 +3,7 @@ from enum import IntEnum
 from functools import cache
 from typing import cast
 
-from tic_tac_toe import Board, Marker, next_marker_to_place
+from .tic_tac_toe import Board, Marker
 
 logger = logging.getLogger(__name__)
 

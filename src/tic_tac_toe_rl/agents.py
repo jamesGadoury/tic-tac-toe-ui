@@ -4,19 +4,18 @@ from math import exp
 from random import choice, random
 from typing import Protocol, cast
 
-from egocentric import (
+from .egocentric import (
     EgocentricBoard,
     canonicalize_board_action,
     remap_to_egocentric_board,
 )
-from tic_tac_toe import (
+from .tic_tac_toe import (
     Board,
     GameState,
     Marker,
     available_plays,
     game_state,
     pretty_format,
-    transition,
 )
 
 logger = logging.getLogger(__name__)
@@ -94,9 +93,6 @@ class QAgent(Agent):
         self._epsilon_strategy = epsilon_strategy
         self._steps = 0
 
-        logger.debug(f"{self._frozen=}")
-        logger.debug(f"{self._epsilon_strategy=}")
-
     @classmethod
     def load(
         cls,
@@ -131,16 +127,13 @@ class QAgent(Agent):
         ego_state: EgocentricBoard = remap_to_egocentric_board(
             state, marker=self._marker
         )
-        logger.debug(f"{ego_state=}")
 
         canonical_state, canonical_action = canonicalize_board_action(ego_state, action)
         canonical_state_action: str = _serialize_state_action(
             cast(EgocentricBoard, canonical_state), canonical_action
         )
 
-        logger.debug(f"{canonical_state_action=}")
         state_action = _serialize_state_action(ego_state, action)
-        logger.debug(f"{state_action=}")
 
         # NOTE: we only initialize the canonical q table entry because we
         #       will only ever set entries in the regular q table
@@ -200,9 +193,6 @@ class QAgent(Agent):
         if self._frozen:
             return None
 
-        logger.debug(
-            f"state_t:\n{pretty_format(state_t)}\nstate_t_next:\n{pretty_format(state_t_next)}"
-        )
         canonical_state_action_t, _ = self.serialize_state_action(
             state=state_t, action=action
         )
@@ -214,7 +204,6 @@ class QAgent(Agent):
         self._N[canonical_state_action_t] += 1
 
         lr = 1.0 / self._N[canonical_state_action_t]
-        logger.debug(f"Using lr: {lr} for {canonical_state_action_t}")
         q_t = self._canonical_q_table[canonical_state_action_t]
 
         if game_state(state_t_next) != GameState.INCOMPLETE:
