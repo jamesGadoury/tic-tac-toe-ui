@@ -1,26 +1,21 @@
 import json
 from argparse import ArgumentParser
-from dataclasses import asdict, dataclass
-from enum import IntEnum
-from math import exp
 from pathlib import Path
-from random import choice, seed
-from time import time_ns
-from typing import Any, Protocol
+from random import seed
 
-from agents import Agent, QAgent, RandomAgent
-from tic_tac_toe import (
-    Board,
+from train import find_most_recent_file_with_substring, reward_from_board_transition
+
+from tic_tac_toe_rl import (
+    Agent,
     GameState,
     Marker,
-    available_plays,
+    QAgent,
+    RandomAgent,
     game_state,
     new_board,
     next_marker_to_place,
     transition,
 )
-from tqdm import tqdm
-from train import find_most_recent_file_with_substring, reward_from_board_transition
 
 
 def load_q_agent(dir: Path, marker: Marker) -> QAgent:

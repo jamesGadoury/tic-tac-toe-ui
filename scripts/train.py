@@ -3,33 +3,36 @@ import logging
 import traceback
 from argparse import ArgumentParser
 from dataclasses import asdict, dataclass
-from enum import IntEnum
 from math import exp
 from pathlib import Path
-from random import choice, seed
+from random import seed
 from sys import stderr
 from time import time_ns
-from typing import Any, Protocol
+from typing import Any
 
-from agents import Agent, EpsilonStrategy, HumanAgent, QAgent, RandomAgent
-from tic_tac_toe import (
+from tqdm import tqdm
+
+from tic_tac_toe_rl import (
+    Agent,
     Board,
+    EpsilonStrategy,
     GameState,
+    HumanAgent,
     Marker,
-    available_plays,
+    QAgent,
+    RandomAgent,
     game_state,
     new_board,
     next_marker_to_place,
     pretty_format,
     transition,
 )
-from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 RANDOM_AGENT = "RANDOM_AGENT"
 FROZEN_Q_AGENT = "FROZEN_Q_AGENT"
 HUMAN_AGENT = "HUMAN_AGENT"
-
-logger = logging.getLogger(__name__)
 
 
 # TODO: move to a shared file so other scripts can use it (e.g. app_setup.py ?)
@@ -65,14 +68,6 @@ class TrainingParams:
     epsilon_decay_rate: float
     opponent: str
     training: Marker
-
-
-@dataclass
-class Transition:
-    state_t0: Board
-    action: int
-    reward: float
-    state_t1: Board
 
 
 @dataclass

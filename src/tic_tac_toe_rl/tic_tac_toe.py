@@ -1,7 +1,7 @@
 import logging
-from enum import Enum, IntEnum
+from enum import IntEnum
 from functools import cache
-from typing import Self, cast
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,6 @@ def new_board() -> Board:
 @cache
 def next_marker_to_place(board: Board) -> Marker:
     player_marker_count = len(board) - board.count(Marker.EMPTY)
-    logger.debug(f"{player_marker_count=}")
     return Marker.FIRST_PLAYER if player_marker_count % 2 == 0 else Marker.SECOND_PLAYER
 
 
@@ -125,7 +124,7 @@ def second_player_won(board: Board) -> bool:
     return winning_player_marker == Marker.SECOND_PLAYER
 
 
-_WINNING_GAME_COMBOS = (
+WINNING_GAME_COMBOS = (
     (0, 1, 2),
     (3, 4, 5),
     (6, 7, 8),
@@ -139,11 +138,8 @@ _WINNING_GAME_COMBOS = (
 
 @cache
 def _find_winning_player_marker(board: Board) -> Marker | None:
-    for combo in _WINNING_GAME_COMBOS:
+    for combo in WINNING_GAME_COMBOS:
         line = tuple(board[idx] for idx in combo)
-
-        logger.debug(f"{combo=}")
-        logger.debug(f"{line=}")
 
         if len(set(line)) == 1 and line[0] != Marker.EMPTY:
             return line[0]

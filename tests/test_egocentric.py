@@ -1,14 +1,20 @@
 import pytest
-from egocentric import (
+
+from tic_tac_toe_rl import (
     FLIP_ACTION,
     ROT90_ACTION,
     EgocentricMarker,
+    Marker,
     canonicalize_board_action,
     flip,
+    new_board,
+    next_marker_to_place,
     remap_to_egocentric_board,
     rotate90,
+    transition,
 )
-from tic_tac_toe import Marker, new_board, next_marker_to_place, transition
+
+# TODO: fix tests when I rework marker interface
 
 # ------------------ remap_to_egocentric_board tests ------------------
 
