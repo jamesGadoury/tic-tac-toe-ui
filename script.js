@@ -29,23 +29,22 @@ async function loadJSONIfExists(url) {
         return null;
     }
 }
-class QAgent {
-    #qTable;
+class Agent {
+    #vTable;
 
-    constructor(qTable) {
-        this.#qTable = qTable;
+    constructor(vTable) {
+        this.#vTable = vTable;
     }
 
-    serialize(board, action) {
-        // NOTE: we assume the agent was trained such that 0=EMPTY, 1=AGENT, 2=OPPONENT
-        //       this matches the gym_tictactoe env
-        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "") + `${action}`;
+    serialize(board) {
+        // NOTE: we assume the value table for agent is serializes board states such that 0=EMPTY, 1=AGENT, 2=OPPONENT
+        return board.map(c => c === EMPTY ? "0" : c === COMPUTER ? "1" : "2").toString().replaceAll(",", "");
     }
 
-    getValue(board, action) {
-        const key = this.serialize(board, action);
-        if (key in this.#qTable) {
-            return this.#qTable[key];
+    getValue(board) {
+        const key = this.serialize(board);
+        if (key in this.#vTable) {
+            return this.#vTable[key];
         }
 
         return 0.0;
@@ -56,7 +55,9 @@ class QAgent {
         //       for non empty cells which will then get dropped by the flatten operation
         const emptyCellsIndices = board.flatMap((cell, idx) => cell === EMPTY ? [idx] : []);
         const estimatedValues = emptyCellsIndices.map(idx => {
-            return this.getValue(board, idx);
+            let child = [...board]
+            child[idx] = COMPUTER;
+            return this.getValue(child);
         });
         const maxEstimatedValue = Math.max(...estimatedValues);
         const bestSlot = estimatedValues.findIndex(v => v === maxEstimatedValue);
@@ -86,7 +87,7 @@ class TicTacToe {
 
         // try to fetch json for q table, if it doesn't exist we will
         // fallback on default heuristics for computer
-        const path = "./q_table.json";
+        const path = "./vtable.json";
         loadJSONIfExists(path)
             .then(table => {
                 if (!table) {
@@ -94,7 +95,7 @@ class TicTacToe {
                     return;
                 }
 
-                this.#agent = new QAgent(table);
+                this.#agent = new Agent(table);
             })
             .catch(err => {
                 console.error(`Unexpected error loading table at path ${path}: `, err);

@@ -1,8 +1,7 @@
 import logging
 
 import pytest
-
-from tic_tac_toe_rl import (
+from tic_tac_toe import (
     WINNING_GAME_COMBOS,
     GameState,
     Marker,
