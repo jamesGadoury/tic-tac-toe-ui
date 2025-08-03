@@ -49,9 +49,9 @@ class RandomAgent(Agent):
         return choice(available_plays(board))
 
 
-def play_game(vtable, agent_playing: int) -> GameState:
+def play_game(vtable: dict[str, float], agent_playing: int) -> GameState:
     assert agent_playing in [FIRST, SECOND]
-    board = new_board()
+    board: Board = new_board()
     player: cycle[Agent] = (
         cycle([ValueAgent(vtable=vtable), RandomAgent()])
         if agent_playing == FIRST
@@ -59,8 +59,8 @@ def play_game(vtable, agent_playing: int) -> GameState:
     )
 
     while True:
-        action = next(player).get_action(board=board)
-        board = transition(board=board, idx=action)
+        action: int = next(player).get_action(board=board)
+        board: Board = transition(board=board, idx=action)
         if is_game_over(board=board):
             return game_state(board=board)
 
