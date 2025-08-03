@@ -1,4 +1,6 @@
-# tic-tac-toe-rl
+# tic-tac-toe
+
+[Play tic-tac-toe against agent](https://jamesgadoury.github.io/tic-tac-toe/)
 
 Python code and notebooks for using rl to create an optimal tic tac toe agent. 
 
@@ -18,7 +20,7 @@ install the env package by itself:
 uv pip install .
 ```
 
-if you want to run the training script(s?) or work on the package, recommend running below instead:
+if you want to run the scripts or work on the package, recommend running below instead:
 ```
 uv pip install -e ".[dev]"
 ```
@@ -30,5 +32,5 @@ all of below assumes you are in an virtual env created in above setup section.
 tests:
 
 ```
-python -m pytest src/* -vv --durations=0 --log-cli-level=DEBUG
+python -m pytest tests/* -vv --durations=0 --log-cli-level=DEBUG
 ```
