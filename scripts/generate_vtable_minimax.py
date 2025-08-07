@@ -39,7 +39,7 @@ def deserialize(state: str) -> Board:
 def terminal_value(board: Board, player: Marker):
     outcome: GameState = game_state(board)
     if outcome == GameState.FIRST_PLAYER_WON:
-        return +1.0 if player == Marker.FIRST_PLAYER else -1.0
+        return 1.0 if player == Marker.FIRST_PLAYER else -1.0
     if outcome == GameState.SECOND_PLAYER_WON:
         return -1.0 if player == Marker.FIRST_PLAYER else 1.0
     return 0.0
